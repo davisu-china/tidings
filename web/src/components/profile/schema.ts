@@ -92,17 +92,10 @@ export function profileSchemaFor({ requireBirthDay }: { requireBirthDay: boolean
     birth_day: z.number().int().nullable(),
     city_code: requiredNumber('请选择所在城市'),
     height_cm: requiredNumber('请选择身高'),
-    // 体重与身高是一组外形上的硬条件，所以和身高同进退。范围 35–150
-    // 是后端 applyInput 的原话，前端先拦一道，省掉一次「传上去才知道不行」。
-    // 两条 refine 互斥（null / 越界），任何一次最多只报一条。
-    weight_kg: z
-      .number()
-      .int()
-      .nullable()
-      .refine((v) => v !== null, { message: '请填写体重' })
-      .refine((v) => v === null || (v >= 35 && v <= 150), {
-        message: '体重需要在 35 到 150 公斤之间',
-      }),
+    // 体重与身高是一组外形上的硬条件，所以和身高同进退，校验也就和身高同形：
+    // 35–150 这道范围由选项自己保证（fields.tsx 的 WEIGHT_OPTIONS，与后端
+    // applyInput 同值），控件产不出范围外的值，这里不必再挂一条够不着的 refine。
+    weight_kg: requiredNumber('请选择体重'),
     education_level: requiredNumber('请选择学历'),
     // 院校是自由文本，不校院校库：库外的学校也得填得进去，否则「必填」
     // 会变成「填不出来」。层级由服务端按院校库归一（schools.TierOf）。

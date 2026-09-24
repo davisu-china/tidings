@@ -90,10 +90,23 @@ export function Row({ children }: { children: React.ReactNode }) {
 // 出生日期与城市都不在这里：它们各自是复合控件（年月日三级、省市两级），
 // 见 BirthDatePicker.tsx 与 RegionPicker.tsx。这里只留单层的选项表。
 
-// 身高用原生 select：手机上它会唤起系统滚轮，精确停在 165 比任何自绘控件都容易（19.2）
+// 身高与体重都用原生 select：手机上它会唤起系统滚轮，精确停在 165 或 52
+// 比任何自绘控件都容易（19.2），而这两项都是要么一次填对、要么一直错着的数。
+//
+// PRD 5.3 把这两项归在 SheetPicker / WheelPicker 下，并要求初值落在中位数
+// （身高 170、体重 60）。这里没有自绘滚轮，所以那条中位数初值也不需要 ——
+// 原生下拉不强迫任何人从最小值一路滚上来。真要换成弹层滚轮，两项一起换：
+// 它们并排放在一行里，一个原生一个自绘会很怪。
 const HEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => {
   const h = 140 + i
   return { value: h, label: `${h} cm` }
+})
+
+// 35–150 是后端 applyInput 的范围。选项本身就是这道范围 —— 和身高一样，
+// schema 里不再另写一条够不着的 refine，控件产不出界外的值。
+const WEIGHT_OPTIONS = Array.from({ length: 116 }, (_, i) => {
+  const w = 35 + i
+  return { value: w, label: `${w} kg` }
 })
 
 const MAX_HOBBIES = 6
@@ -214,17 +227,11 @@ export function FigureFields({ control, errors }: SectionProps) {
         name="weight_kg"
         render={({ field }) => (
           <Field label="体重" controlId="weight_kg" error={errors.weight_kg?.message}>
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={35}
-              max={150}
-              value={field.value ?? ''}
-              onChange={(e) =>
-                field.onChange(e.target.value === '' ? null : Number(e.target.value))
-              }
-              onBlur={field.onBlur}
-              placeholder="公斤"
+            <Select
+              value={field.value}
+              onChange={field.onChange}
+              options={WEIGHT_OPTIONS}
+              placeholder="请选择体重"
             />
           </Field>
         )}
