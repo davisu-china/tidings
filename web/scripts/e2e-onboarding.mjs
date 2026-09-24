@@ -459,7 +459,7 @@ try {
 
   // ---------- 第 2 步：外形 ----------
   await page.select('#height_cm', '165')
-  await page.type('#weight_kg', '52')
+  await page.select('#weight_kg', '52')
   await shot('04-onboarding-figure')
 
   await clickText('button', '下一步')
@@ -603,6 +603,9 @@ try {
       nickname: v('#nickname'),
       birth: t('#birth_date'),
       height: v('#height_cm'),
+      // 体重也是原生下拉，回显是它唯一可能出错的地方（选项表与后端范围对不上
+      // 就会静默落到第一项），所以和身高一样按 .value 读
+      weight: v('#weight_kg'),
       city: t('#city_code'),
       hometown: t('#hometown_code'),
       occupation: v('#occupation'),
@@ -614,6 +617,7 @@ try {
     refilled.nickname === '林小满' &&
       refilled.birth === '1995 年 8 月 20 日' &&
       refilled.height === '165' &&
+      refilled.weight === '52' &&
       refilled.city === '上海' &&
       refilled.hometown === '南京' &&
       refilled.occupation === '产品经理' &&
