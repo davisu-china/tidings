@@ -31,7 +31,6 @@ export interface ProfileForm {
   occupation: string
   company: string
   income_band: number | null
-  chronotype: number | null
   smoking: number | null
   drinking: number | null
   hobbies: string
@@ -101,25 +100,30 @@ export function profileSchemaFor({ requireBirthDay }: { requireBirthDay: boolean
     // 会变成「填不出来」。层级由服务端按院校库归一（schools.TierOf）。
     school_name: z.string().trim().min(1, '请填写毕业院校').max(40, '不能超过 40 个字'),
 
-    hometown_code: z.number().int().nullable(),
-    occupation: z.string().trim().max(40, '不能超过 40 个字'),
-    company: z.string().trim().max(40, '不能超过 40 个字'),
-    income_band: z.number().int().nullable(),
-    chronotype: z.number().int().nullable(),
-    smoking: z.number().int().nullable(),
-    drinking: z.number().int().nullable(),
+    // 「补充」这一步的 11 项，v1.7 起全是必填。它们曾经整块是选填，
+    // 结果是线上 125 个 active 账号里公司 124 个空、期望 125 个空 ——
+    // 选填的字段就是没人填的字段。校验与后端 requiredMissing 一一对应。
+    hometown_code: requiredNumber('请选择家乡'),
+    occupation: z.string().trim().min(1, '请填写职业').max(40, '不能超过 40 个字'),
+    company: z.string().trim().min(1, '请填写工作单位').max(40, '不能超过 40 个字'),
+    income_band: requiredNumber('请选择年收入'),
+    smoking: requiredNumber('请选择吸烟情况'),
+    drinking: requiredNumber('请选择饮酒情况'),
+    // 至少要有一个标签：空串在 splitHobbies 之后是 0 个，与后端
+    // 「Hobbies == ""」这条判定同义。
     hobbies: z
       .string()
+      .refine((v) => splitHobbies(v).length >= 1, { message: '请至少填一个兴趣' })
       .refine((v) => splitHobbies(v).length <= MAX_HOBBIES, {
         message: `兴趣标签最多 ${MAX_HOBBIES} 个`,
       })
       .refine((v) => splitHobbies(v).every((t) => [...t].length <= MAX_HOBBY_RUNES), {
         message: `单个标签不能超过 ${MAX_HOBBY_RUNES} 个字`,
       }),
-    intro: z.string().trim().max(300, '不能超过 300 个字'),
-    expectation: z.string().trim().max(300, '不能超过 300 个字'),
-    want_child: z.number().int().nullable(),
-    marital_status: z.number().int().nullable(),
+    intro: z.string().trim().min(1, '请写一句自我介绍').max(300, '不能超过 300 个字'),
+    expectation: z.string().trim().min(1, '请写一句你的期待').max(300, '不能超过 300 个字'),
+    want_child: requiredNumber('请选择关于孩子的态度'),
+    marital_status: requiredNumber('请选择婚史'),
   })
 
   if (!requireBirthDay) return base
@@ -157,7 +161,6 @@ export function toFormValues(p: Profile): ProfileForm {
     occupation: p.occupation,
     company: p.company,
     income_band: p.income_band,
-    chronotype: p.chronotype,
     smoking: p.smoking,
     drinking: p.drinking,
     hobbies: p.hobbies.join('、'),
@@ -171,9 +174,9 @@ export function toFormValues(p: Profile): ProfileForm {
 /**
  * 只把这一步动过的字段拼成 PATCH 体。
  *
- * 枚举类的选填项跳过 null：后端对 income_band / chronotype 这类字段
- * 只接受 1–6、1–3，传 null 会被拒。代价是选了之后改不回「未填」——
- * 在 MVP 里这是个已知的小缺口，不是疏忽。
+ * 枚举类字段跳过 null：后端对 income_band 这类字段只接受 1–6，传 null 会被拒。
+ * 代价是选了之后改不回「未填」—— 而 v1.7 起这些字段都是必填的，
+ * 本就该有一个值，所以这个缺口只剩下「建档填到一半时字段暂缺」这一种情形。
  */
 export function buildPatch(v: ProfileForm, keys: readonly FieldKey[]): ProfileInput {
   const out: Record<string, unknown> = {}

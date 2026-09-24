@@ -23,12 +23,6 @@ export const INCOME_BANDS = [
   { value: 6, label: '100 万以上' },
 ] as const
 
-export const CHRONOTYPES = [
-  { value: 1, label: '早睡早起' },
-  { value: 2, label: '夜猫子' },
-  { value: 3, label: '不规律' },
-] as const
-
 /**
  * 「不合适」的原因（决策 07：三选一必填，不要求输入文字）。
  *
@@ -110,7 +104,6 @@ function labelOf(
 export const genderLabel = (v: string | null | undefined) => labelOf(GENDERS, v)
 export const educationLabel = (v: number | null | undefined) => labelOf(EDUCATION_LEVELS, v)
 export const incomeLabel = (v: number | null | undefined) => labelOf(INCOME_BANDS, v)
-export const chronotypeLabel = (v: number | null | undefined) => labelOf(CHRONOTYPES, v)
 export const frequencyLabel = (v: number | null | undefined) => labelOf(FREQUENCIES, v)
 export const wantChildLabel = (v: number | null | undefined) => labelOf(WANT_CHILDREN, v)
 export const maritalLabel = (v: number | null | undefined) => labelOf(MARITAL_STATUSES, v)
@@ -134,6 +127,19 @@ export const MISSING_LABELS: Record<string, string> = {
   avatar_key: '头像',
   // 不带张数：改完之后这条只在 0 张时出现，写「至少 3 张」会是假话。
   photos: '照片',
+  // v1.7 起「补充」那 11 项也是必填，标签跟界面上的一致：
+  // 控件叫「关于孩子」而不是「婚育意愿」，「工作单位」而不是「公司」。
+  hometown_code: '家乡',
+  occupation: '职业',
+  company: '工作单位',
+  income_band: '年收入',
+  smoking: '吸烟',
+  drinking: '饮酒',
+  hobbies: '兴趣',
+  intro: '自我介绍',
+  expectation: '对另一半的期待',
+  want_child: '关于孩子',
+  marital_status: '婚史',
 }
 
 export function missingLabels(fields: readonly string[]): string[] {

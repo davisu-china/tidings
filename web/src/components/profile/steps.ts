@@ -3,16 +3,17 @@ import type { FieldKey } from './schema'
 /**
  * 建档的五个步骤。
  *
- * 顺序不是随便排的：前四步装的是入池门槛（8 项必填 + 头像 + 第 1 张照片），
- * 第五步才是选填。用户在第五步停下来，档案也已经是可被引荐的 ——
- * 让必填项散落在最后一步是不可接受的。
+ * **五步全是必填**（v1.7 起）。第五步原先整步是选填，用户走到第四步停下
+ * 就已经可被引荐了 —— 结果是那一整块字段常年空着：线上 125 个 active
+ * 账号里公司 124 个空、期望 125 个空。选填的字段就是没人填的字段，
+ * 所以它并进了门槛，见 backend/internal/service/profile.go 的 requiredMissing。
  *
- * 每一页只装一块内容：外形是外形，学历是学历。四页里的两组字段是两对
+ * 每一页只装一块内容：外形是外形，学历是学历。前四页里的两组字段是两对
  * 硬条件 —— 身高配体重、学历配院校 —— 各自成一页，页标题才说得清在讲什么。
  *
  * 照片这一步里只有头像和第 1 张是门槛：照片的要求是 1 张（见
  * backend/internal/service/profile.go 的 minPhotosForActive），第 2、3 张
- * 和第五步的选填项同性质 —— 有价值，但不拦人。
+ * 同性质 —— 有价值，但不拦人。
  */
 export const BASIC_FIELDS = [
   'nickname',
@@ -39,20 +40,25 @@ export const EDUCATION_FIELDS = [
 /** 照片这一步不提交字段：头像和照片各自有接口，上传完即时生效。 */
 export const PHOTO_FIELDS = [] as const satisfies readonly FieldKey[]
 
+/**
+ * 补充。11 项全是必填。
+ *
+ * 作息（chronotype）曾在这一块，后端 000004 迁移删掉了它：它只喂匹配打分里
+ * 的生活方式一项，而那条规则对未填项不计入分母 —— 如实填一项不如不填。
+ */
 export const MORE_FIELDS = [
   'hometown_code',
   'occupation',
   'company',
   'income_band',
-  'chronotype',
   'smoking',
   'drinking',
   'hobbies',
   'intro',
   'expectation',
-  // 婚育与婚史。放在补充这一步，不进「完整度」的 12 项 ——
-  // 后端也没把它们算进那 60/40 的分母里，两边的清单必须是同一份，
-  // 否则用户会看到「都填完了但完成度还是 100 差一点」。
+  // 婚育与婚史。它们同时也参与硬条件过滤（「想要」和「不要」撞上时不会
+  // 互相引荐），所以必填这一条不只是完整度问题：空着的时候匹配会按
+  // 「不限」处理，等于替用户说了「都行」。
   'want_child',
   'marital_status',
 ] as const satisfies readonly FieldKey[]
@@ -76,6 +82,10 @@ export const STEPS: readonly Step[] = [
  *
  * 这张表就是 19.6 第一个洞的补法：拿到 missing_required 之后直接跳到
  * 第一个没做完的步骤，而不是每次都从第 1 步重新来过。
+ *
+ * 它必须覆盖后端 admissionMissing 能报出的每一个 key。漏一个的后果不是
+ * 报错而是**静默走错**：firstIncompleteStep 会跳过那个不认识的 key，
+ * 用户明明只差第五步，却被丢回第一步重填一遍。
  */
 const MISSING_STEP: Record<string, number> = {
   nickname: 0,
@@ -88,6 +98,17 @@ const MISSING_STEP: Record<string, number> = {
   school_name: 2,
   avatar_key: 3,
   photos: 3,
+  hometown_code: 4,
+  occupation: 4,
+  company: 4,
+  income_band: 4,
+  smoking: 4,
+  drinking: 4,
+  hobbies: 4,
+  intro: 4,
+  expectation: 4,
+  want_child: 4,
+  marital_status: 4,
 }
 
 export function firstIncompleteStep(missing: readonly string[]): number {

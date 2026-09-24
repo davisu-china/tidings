@@ -19,7 +19,7 @@ interface SegmentedProps<T extends string | number> {
 /**
  * 分段选择。用于 2–4 个选项的字段。
  *
- * 比下拉少一次点击，而且选项全都看得见 —— 性别、学历、作息这类字段
+ * 比下拉少一次点击，而且选项全都看得见 —— 性别、学历、吸烟这类字段
  * 用户在填之前就想知道有哪些选项，藏在展开层里反而要来回翻。
  */
 export function Segmented<T extends string | number>({

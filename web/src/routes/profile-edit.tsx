@@ -128,7 +128,7 @@ export function ProfileEditPage() {
 
       <Block
         title="补充"
-        description="全是选填。填得越具体，越容易被人记住。"
+        description="这几项是别人决定要不要认识你的依据，都填上才能进池子。"
         dirty={isDirty(MORE_FIELDS)}
         saving={saving}
         onSave={() => void save(MORE_FIELDS)}

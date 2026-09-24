@@ -143,9 +143,11 @@ export function MePage() {
           不是「你还没进池子」。 */}
       <div className="mt-7">
         {profile.status === 'active' && (
+          // 这里曾经跟着一句「选填项填得越多，越容易被记住」。v1.7 起没有
+          // 选填项了，这句话没有指向 —— 唯一还能多做的是多传几张照片，
+          // 而那是编辑页自己会催的事。
           <p className="text-[13px] leading-[1.8] text-muted">
             入池条件已满足，可以收到引荐了。
-            {missing.length === 0 && '选填项填得越多，越容易被记住。'}
           </p>
         )}
         {missing.length > 0 && (

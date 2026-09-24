@@ -108,7 +108,6 @@ export interface ProfileInput {
   occupation?: string
   company?: string
   income_band?: number
-  chronotype?: number
   smoking?: number
   drinking?: number
   /** 顿号分隔，≤6 个 */
@@ -144,7 +143,6 @@ export interface Profile {
   occupation: string
   company: string
   income_band: number | null
-  chronotype: number | null
   smoking: number | null
   drinking: number | null
   hobbies: string[]

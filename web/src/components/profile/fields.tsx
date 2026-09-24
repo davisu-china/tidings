@@ -5,7 +5,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { FieldError, Label } from '@/components/ui/label'
 import { Segmented } from '@/components/ui/segmented'
 import { Select } from '@/components/ui/select'
-import { ageFromBirthYM, CHRONOTYPES, EDUCATION_LEVELS, formatBirthDate, FREQUENCIES, GENDERS, INCOME_BANDS, MARITAL_STATUSES, WANT_CHILDREN } from '@/lib/dict'
+import { ageFromBirthYM, EDUCATION_LEVELS, formatBirthDate, FREQUENCIES, GENDERS, INCOME_BANDS, MARITAL_STATUSES, WANT_CHILDREN } from '@/lib/dict'
 
 import { BirthDatePicker } from './BirthDatePicker'
 import { RegionPicker } from './RegionPicker'
@@ -34,7 +34,6 @@ export function Field({
   group,
   hint,
   error,
-  optional,
   children,
 }: {
   label: string
@@ -43,8 +42,6 @@ export function Field({
   group?: boolean
   hint?: React.ReactNode
   error?: string
-  /** 选填项标出来。不标的话用户会把每一项都当成必须填的 */
-  optional?: boolean
   children: React.ReactNode
 }) {
   const labelId = `${controlId}-label`
@@ -66,7 +63,6 @@ export function Field({
         <Label id={labelId} htmlFor={group ? undefined : controlId}>
           {label}
         </Label>
-        {optional && <span className="text-[12px] text-muted">选填</span>}
       </div>
       <div className="mt-2">{control}</div>
       {error ? (
@@ -279,7 +275,10 @@ export function EducationFields({ control, errors }: SectionProps) {
   )
 }
 
-/** 补充：全是选填，却占完整度的 40 分 —— 选填给足权重是有意的（§4.2）。 */
+/**
+ * 补充。11 项全是必填（v1.7 起），所以没有「选填」标记可标 —— 这也是
+ * Field 上那个 optional 道具被删掉的原因：没有字段再用它了。
+ */
 export function MoreFields({ control, errors }: SectionProps) {
   return (
     <div className="grid gap-5">
@@ -287,7 +286,7 @@ export function MoreFields({ control, errors }: SectionProps) {
         control={control}
         name="hometown_code"
         render={({ field }) => (
-          <Field label="家乡" controlId="hometown_code" group optional error={errors.hometown_code?.message}>
+          <Field label="家乡" controlId="hometown_code" group error={errors.hometown_code?.message}>
             <RegionPicker
               idBase="hometown_code"
               title="选择家乡"
@@ -303,7 +302,7 @@ export function MoreFields({ control, errors }: SectionProps) {
           control={control}
           name="occupation"
           render={({ field }) => (
-            <Field label="职业" controlId="occupation" optional error={errors.occupation?.message}>
+            <Field label="职业" controlId="occupation" error={errors.occupation?.message}>
               <Input value={field.value} onChange={field.onChange} onBlur={field.onBlur} placeholder="如 产品经理" />
             </Field>
           )}
@@ -312,7 +311,7 @@ export function MoreFields({ control, errors }: SectionProps) {
           control={control}
           name="company"
           render={({ field }) => (
-            <Field label="工作单位" controlId="company" optional error={errors.company?.message}>
+            <Field label="工作单位" controlId="company" error={errors.company?.message}>
               <Input value={field.value} onChange={field.onChange} onBlur={field.onBlur} placeholder="如 某互联网公司" />
             </Field>
           )}
@@ -327,7 +326,6 @@ export function MoreFields({ control, errors }: SectionProps) {
             label="年收入"
             controlId="income_band"
             group
-            optional
             error={errors.income_band?.message}
             hint="只展示区间，不展示具体数字。"
           >
@@ -349,7 +347,6 @@ export function MoreFields({ control, errors }: SectionProps) {
             label="关于孩子"
             controlId="want_child"
             group
-            optional
             error={errors.want_child?.message}
             hint="「想要」和「不要」撞上时不会互相引荐。选「再说」两边都不挡。"
           >
@@ -367,7 +364,7 @@ export function MoreFields({ control, errors }: SectionProps) {
         control={control}
         name="marital_status"
         render={({ field }) => (
-          <Field label="婚史" controlId="marital_status" group optional error={errors.marital_status?.message}>
+          <Field label="婚史" controlId="marital_status" group error={errors.marital_status?.message}>
             <Segmented
               value={field.value}
               onChange={field.onChange}
@@ -381,18 +378,23 @@ export function MoreFields({ control, errors }: SectionProps) {
       <Row>
         <Controller
           control={control}
-          name="chronotype"
+          name="smoking"
           render={({ field }) => (
-            <Field label="作息" controlId="chronotype" group optional error={errors.chronotype?.message}>
-              <Segmented value={field.value} onChange={field.onChange} options={CHRONOTYPES} />
+            <Field label="吸烟" controlId="smoking" group error={errors.smoking?.message}>
+              <Segmented
+                value={field.value}
+                onChange={field.onChange}
+                options={FREQUENCIES}
+                columns={3}
+              />
             </Field>
           )}
         />
         <Controller
           control={control}
-          name="smoking"
+          name="drinking"
           render={({ field }) => (
-            <Field label="吸烟" controlId="smoking" group optional error={errors.smoking?.message}>
+            <Field label="饮酒" controlId="drinking" group error={errors.drinking?.message}>
               <Segmented
                 value={field.value}
                 onChange={field.onChange}
@@ -406,21 +408,6 @@ export function MoreFields({ control, errors }: SectionProps) {
 
       <Controller
         control={control}
-        name="drinking"
-        render={({ field }) => (
-          <Field label="饮酒" controlId="drinking" group optional error={errors.drinking?.message}>
-            <Segmented
-              value={field.value}
-              onChange={field.onChange}
-              options={FREQUENCIES}
-              columns={3}
-            />
-          </Field>
-        )}
-      />
-
-      <Controller
-        control={control}
         name="hobbies"
         render={({ field }) => {
           const tags = splitHobbies(field.value)
@@ -428,8 +415,7 @@ export function MoreFields({ control, errors }: SectionProps) {
             <Field
               label="兴趣"
               controlId="hobbies"
-              optional
-              error={errors.hobbies?.message}
+                            error={errors.hobbies?.message}
               hint={
                 tags.length > 0 ? (
                   <>
@@ -459,8 +445,7 @@ export function MoreFields({ control, errors }: SectionProps) {
           <Field
             label="自我介绍"
             controlId="intro"
-            optional
-            error={errors.intro?.message}
+                        error={errors.intro?.message}
             hint={
               <>
                 <span className="tnum font-mono">{[...field.value].length}</span>/300 字。写你周末
@@ -486,8 +471,7 @@ export function MoreFields({ control, errors }: SectionProps) {
           <Field
             label="对另一半的期待"
             controlId="expectation"
-            optional
-            error={errors.expectation?.message}
+                        error={errors.expectation?.message}
             hint={
               <>
                 <span className="tnum font-mono">{[...field.value].length}</span>/300 字
