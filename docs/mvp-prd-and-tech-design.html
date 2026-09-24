@@ -2202,14 +2202,10 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
         │                         │
         │   ─────────────────     │
         │                         │
-        │   你的档案已完整 45%      │  <span class="c">仅在 &lt; 60% 时出现</span>
-        │   补全后才会被引荐给别人   │  <span class="c">决策 16 的不对称</span>
-        │   还差：单位、收入、作息    │
-        │                         │
-        │   [ 去补全 ]             │  <span class="c">accent 描边按钮</span>
+        │   [ 去补全 ]             │  <span class="c">accent 描边按钮，有缺项时才出现</span>
         └─────────────────────────┘</code></pre>
 
-        <p>这段文案直接服务决策 16：<strong>只入池的用户能收引荐、不会被引荐</strong>。首页是他唯一会反复看到的界面，把「你为什么还没被引荐」说在这里，比在「我的」页面里放一个进度条有用得多。</p>
+        <p>这一屏仍然服务决策 16：<strong>只入池的用户能收引荐、不会被引荐</strong>。但「你为什么还没被引荐」不再用完成度来说了：百分比和缺项清单都不出现，只给一句平稳的交代，有缺项的人多一个「去补全」的出口。一个可能在池子长大之前连着几周都是空的界面，不适合夹一张催收单（v1.6 改，见 19.2 的「进度」一条）。</p>
 
         <h4>收尾通知 —— 已经封上的信</h4>
 
@@ -2224,10 +2220,10 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
 
         <ul>
           <li>表单控件沿用文档的克制风格：1px 线框输入框、4px 圆角、focus 时边框转 accent（不用外发光环）</li>
-          <li>连续数值（身高、收入区间）用<strong>滚轮选择器</strong>，不用滑块。滑块在手机上很难精确停在 165</li>
+          <li>连续数值（身高、体重、收入区间）用<strong>滚轮选择器</strong>，不用滑块。滑块在手机上很难精确停在 165。身高与体重是一组，控件也同形：都是带单位的选项表（<code class="mono">165 cm</code> / <code class="mono">52 kg</code>），都用原生下拉——手机上它就是系统滚轮，而且不像自绘滚轮那样需要「初值落在中位数」，因为原生下拉不强迫人从最小值滚起</li>
           <li>出生日期、所在城市、家乡各是<strong>一个</strong>字段，点开是<strong>底部弹层</strong>，里面是滚轮。出生日期一屏三列（年 | 月 | 日），城市和家乡一屏两列（省 | 市，滚省时右边的市整列跟着换）。不做「三个并排的下拉」——同一个问题摊成三个控件，用户得依次点开三次系统滚轮，而两列并排还能让「先省后市」这个层级关系一眼看得见。点「完成」才落库，滚轮只改弹层里的草稿（见 5.3「省市两级弹层」）</li>
           <li>自绘滚轮比原生控件对键盘和读屏更不友好，这是它的代价：列容器挂 <code class="mono">role="listbox"</code>、选项挂 <code class="mono">role="option"</code> 并支持方向键 / PageUp / PageDown / Home / End，弹层本身有焦点陷阱、Escape 关闭与背景滚动锁。弹层<strong>不做入场动画</strong>——全站唯一的动效是印章（19.3）</li>
-          <li>进度用真话表达：「档案 45%，还差 4 项」，并逐项列出缺什么、影响什么。<strong>不写「完善资料」</strong></li>
+          <li>进度<strong>不报百分比、也不列缺项清单</strong>：入池与否只有两种状态，向导一步步往下走本身就是进度，顶上再挂一张此刻够不着的清单只会添负担。满足时说一句「入池条件已满足，可以收到引荐了」，缺项只在编辑页里对着字段看。<strong>不写「完善资料」，也不写「档案 45%」</strong>——后者会让人以为没到 100% 就不能被引荐（v1.6 改）</li>
           <li>每一步提交即保存（<code>PUT /me/profile</code> 局部更新），顶部不设「保存」按钮</li>
         </ul>
 
@@ -2330,7 +2326,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
               <tr><td class="mono">/intro/:id</td><td>引荐详情</td><td>引荐卡全文 + 印章按钮 + 时间余量</td></tr>
               <tr><td class="mono">/matches</td><td>匹配列表</td><td>含未读角标</td></tr>
               <tr><td class="mono">/chat/:id</td><td>会话</td><td>WebSocket 实时文字</td></tr>
-              <tr><td class="mono">/me</td><td>我的</td><td>档案完成度 + 缺项提示</td></tr>
+              <tr><td class="mono">/me</td><td>我的</td><td>档案状态与入池提示 + 编辑 / 照片 / 偏好 / 通知四个入口。不报完成度（v1.6 改）</td></tr>
               <tr><td class="mono">/me/edit</td><td>编辑资料</td><td>复用建档的表单控件</td></tr>
               <tr><td class="mono">/me/photos</td><td>照片管理</td><td>九宫格 + 拖拽排序，第一张即封面</td></tr>
               <tr><td class="mono">/me/preferences</td><td>偏好设置</td><td>硬条件 5 项 + 软偏好 3 项</td></tr>
@@ -2620,7 +2616,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
         v1.3 变更（M1 落地后的回填）：Go 1.25 → <strong>1.26</strong>（<code>x/crypto</code> 及其拉起的 <code>x/sys</code> / <code>x/text</code> 要求 1.26，容器基础镜像同步）；图片输入<strong>加收 PNG</strong>，输出仍是 JPEG 三档（17 章、§21）；新增<strong>直传孤儿对象</strong>风险条目（§21），并写明「照片先审后发、文本先审」实际要等 M5 的审核队列，M1–M4 唯一在跑的自动门槛是人脸检测（§4.1、§21）；<strong>照片人脸检测提前进 M1</strong>，但只用于头像（§3）；18.2 的建档与媒体接口按实现改写（<code>PATCH</code> 而非 <code>PUT</code>、<code>PUT /me/avatar</code>、<code>PUT /me/photos/order</code>）；18.4 写明 <code>X-Admin-Token</code> 头的选择理由。<br>
         v1.4 变更：<strong>入池照片门槛 3 张 → 1 张</strong>（4.1、4.2、7 章、M1 验收）。首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外；引荐卡只取第 1 张当封面，1 张的卡是完整的卡，多传照片从门槛降级为建议。随之新增 <code>LAST_PHOTO</code> 保护：删掉最后一张会让池子里出现没有封面的用户，服务端直接拒绝（删照片本来就不会把 <code>status</code> 退回 onboarding，所以这道拦截是必须的，不是冗余）。照片不进 <code>completeness</code>，这次改动不涉及「完整度 ≥ 60」那条红线，也不需要迁移。<br>
         v1.5 变更（19.2 建单向导）：<strong>出生日期、所在城市、家乡各收成一个字段 + 底部弹层滚轮</strong>。这不是新设计，是把 5.3 早就定下的「SheetPicker / WheelPicker」与「省市两级弹层」补进实现 —— M1 落地时为赶进度用的原生 <code>select</code>（年 / 月 / 日三个、省 / 市两个）在 19.2 里没有对应条目，这次一并改写。出生日期一屏三列、城市与家乡一屏两列（先省后市）；点「完成」才落库，Escape / 取消 / 点遮罩丢弃草稿。同时补上了自绘滚轮欠下的可达性（<code>role="listbox"</code> + 方向键、弹层焦点陷阱、Escape、背景滚动锁）——原生 <code>select</code> 本来用键盘就能操作，换成滚轮是一次真实的可达性回退，这几条是补丁不是等价物。弹层<strong>不做入场动画</strong>，理由同 19.3：全站唯一的动效是印章，它靠稀缺性成立。后端与字段契约（<code>birth_ym</code> / <code>birth_day</code> / <code>city_code</code>）一行未动，18.2 不受影响。<br>
-        v1.6 变更（19.2 建单向导与入池门槛）：<strong>入池必填由 6 项扩到 8 项</strong> —— <code>weight_kg</code>（35–150）与 <code>school_name</code>（≤40 字）由选填转为必填（4.1 / 4.2 / 5.2）。理由是把它们各自和已有的门槛配成对：身高配体重、学历配院校，只问一半会让「硬条件」在池子里留下半张档案。连带两处：完成度公式的分母从 7 / 12 改为 <code>totalRequired = 9</code> / 选填 10 项（60/40 的比例不变，但所有人的完成度会重算）；<code>school_name</code> 保持自由文本、不校院校库 —— 库外的学校也得填得进去，否则「必填」会变成「填不出来」（层级仍由 <code>schools.TierOf</code> 归一）。门槛仍然只在 <code>status = onboarding</code> 时判，已入池的人不会被踢回来，新门槛只拦新档案。同批改动的还有向导本身：外形与学历<strong>拆成两页</strong>（每页只装一块内容，四步变五步），并<strong>不再向用户呈现完成度与缺项清单</strong>（见 4.2 的「不对称」一段）。<br>
+        v1.6 变更（19.2 建单向导与入池门槛）：<strong>入池必填由 6 项扩到 8 项</strong> —— <code>weight_kg</code>（35–150）与 <code>school_name</code>（≤40 字）由选填转为必填（4.1 / 4.2 / 5.2）。理由是把它们各自和已有的门槛配成对：身高配体重、学历配院校，只问一半会让「硬条件」在池子里留下半张档案。连带两处：完成度公式的分母从 7 / 12 改为 <code>totalRequired = 9</code> / 选填 10 项（60/40 的比例不变，但所有人的完成度会重算）；<code>school_name</code> 保持自由文本、不校院校库 —— 库外的学校也得填得进去，否则「必填」会变成「填不出来」（层级仍由 <code>schools.TierOf</code> 归一）。门槛仍然只在 <code>status = onboarding</code> 时判，已入池的人不会被踢回来，新门槛只拦新档案。同批改动的还有向导本身：外形与学历<strong>拆成两页</strong>（每页只装一块内容，四步变五步），并<strong>不再向用户呈现完成度与缺项清单</strong>（见 4.2 的「不对称」一段）。体重由数字输入框改为与身高同形的带单位下拉（<code class="mono">52 kg</code>，选项本身即 35–150 这道范围）。<br>
         文档内所有数值均为判断起点，非承诺；标注 <span class="pill todo">待确认</span> 者未获用户表态。
       </p>
 
