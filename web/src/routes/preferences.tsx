@@ -6,7 +6,8 @@ import { Link, useLoaderData } from 'react-router'
 import { z } from 'zod'
 
 import { fetchPreference, savePreference } from '@/api/preferences'
-import type { Preference, PreferenceInput } from '@/api/types'
+import { fetchProfile } from '@/api/profile'
+import type { Preference, PreferenceInput, Profile } from '@/api/types'
 import { Field, Row } from '@/components/profile/fields'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
@@ -25,8 +26,14 @@ import {
 import { messageOf } from '@/lib/errors'
 
 export async function preferencesLoader() {
-  return { preference: await fetchPreference() }
+  // 档案只是为了让城市那一项知道自己所在的省（见 CityPicker）。
+  // 与偏好并行取，两次请求不叠加等待。
+  const [preference, profile] = await Promise.all([fetchPreference(), fetchProfile()])
+  return { preference, profile }
 }
+
+/** 省份取城市代码的前两位，与召回 SQL 里的 city_code / 10000 是同一个口径。 */
+const province = (code: number) => Math.floor(code / 10000)
 
 /**
  * 「不限」在下拉里的哨兵值。
@@ -191,14 +198,23 @@ function Block({
  */
 function CityPicker({
   value,
+  myCityCode,
   onChange,
   error,
 }: {
   value: number[]
+  /** 我自己的城市。用来挡「只选省外」这个会把人筛空的填法。 */
+  myCityCode: number | null
   onChange: (next: number[]) => void
   error?: string
 }) {
   const full = value.length >= 5
+
+  // 召回是「期望城市」与「同城或同省」两条一起成立的，只选省外的城市，
+  // 两条永远不可能同时满足 —— 这个账号会一封引荐都收不到，而界面上
+  // 看不出任何异常。这不是用法错误，但必须说出来。
+  const noneInMyProvince =
+    value.length > 0 && myCityCode !== null && !value.some((c) => province(c) === province(myCityCode))
 
   function toggle(code: number) {
     if (value.includes(code)) {
@@ -216,9 +232,18 @@ function CityPicker({
       group
       error={error}
       hint={
-        value.length === 0
-          ? '不限城市。选了之后，只会被引荐给这些城市的人。'
-          : `已选 ${value.length} 个，最多 5 个。${full ? '要换的话先取消一个。' : ''}`
+        <>
+          {value.length === 0
+            ? '不限城市。选了之后，只会被引荐给这些城市的人。'
+            : `已选 ${value.length} 个，最多 5 个。${full ? '要换的话先取消一个。' : ''}`}
+          {noneInMyProvince && (
+            <>
+              <br />
+              这些城市都不在你所在的省，而引荐只在同城或同省之间产生 ——
+              这么填等于收不到引荐。要缩小范围的话，选几个你所在省里的城市。
+            </>
+          )}
+        </>
       }
     >
       <div
@@ -254,7 +279,7 @@ function CityPicker({
 }
 
 export function PreferencesPage() {
-  const initial = useLoaderData() as { preference: Preference }
+  const initial = useLoaderData() as { preference: Preference; profile: Profile }
   const qc = useQueryClient()
   const toast = useToast()
   const [saving, setSaving] = React.useState(false)
@@ -263,6 +288,14 @@ export function PreferencesPage() {
     queryKey: ['preference'],
     queryFn: () => fetchPreference(),
     initialData: initial.preference,
+  })
+
+  // 档案走缓存而不是再取一次：/me/edit 与 /me 都在用同一个 key，
+  // 从那边回来时这里拿到的就是刚存下的城市。
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => fetchProfile(),
+    initialData: initial.profile,
   })
 
   const {
@@ -363,6 +396,7 @@ export function PreferencesPage() {
             render={({ field }) => (
               <CityPicker
                 value={field.value}
+                myCityCode={profile.city_code}
                 onChange={field.onChange}
                 error={errors.city_codes?.message}
               />

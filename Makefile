@@ -80,6 +80,10 @@ e2e-m3: ## M3 验收：表态 → 成匹配 → 互发消息（走真 HTTP 与�
 e2e-m4: ## M4 验收：超时扫描 → 四类收尾通知 → 静默时段与未响应冻结
 	cd $(BACKEND) && node scripts/e2e-m4.mjs
 
+.PHONY: e2e-recall
+e2e-recall: ## 召回验收：期望城市真的在过滤（种两个同省城市，等 worker 真跑几轮）
+	cd $(BACKEND) && node scripts/e2e-recall.mjs
+
 .PHONY: e2e-web
 e2e-web: ## 网页验收：注册 → 建档 → 入池（需要 vite dev server 在 5173）
 	cd web && node scripts/e2e-onboarding.mjs

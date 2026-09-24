@@ -61,8 +61,11 @@ type CandidateQuery struct {
 	// 我声明的偏好。没填过就都是零值 / nil，等价于全部「不限」。
 	PrefBirthYMMin *int
 	PrefBirthYMMax *int
-	CityCodes      []int64
-	Limit          int
+	// 我期望的城市（最多 5 个，空 = 不限）。注意与候选人的
+	// pref_city_codes 是两回事：那个是「他接受哪些城市的人」，
+	// 这个是「我想看到哪些城市的人」，两个方向都要判。
+	CityCodes CityCodes
+	Limit     int
 }
 
 // subjectCols 是「一个人 + 他的偏好」这套列的唯一定义。
@@ -128,6 +131,19 @@ WHERE u.status = 'active'
   AND (?::int IS NULL OR p.birth_ym <= ?::int)
   -- 硬条件：我的城市要在他接受的城市里（NULL = 不限）
   AND (pref.city_codes IS NULL OR ? = ANY(pref.city_codes))
+  -- 硬条件：他的城市要在我期望的城市里（NULL / 空 = 不限）
+  --
+  -- 这一条在 M4 之前是漏的：candidateSQL 只判了「他接不接受我的城市」，
+  -- 而我自己填的「期望城市」从头到尾没人读 —— 存了、回显了、不生效。
+  -- 界面上写着「选了之后只会被引荐给这些城市的人」，那是句空话。
+  --
+  -- 空列表必须落成 NULL 而不是 '{}'：ANY('{}') 对谁都是假，
+  -- 「不限」会变成「哪个城市都不行」。repo.CityCodes 负责这一点。
+  --
+  -- 它与下面「同城或同省」是**与**的关系，所以选了省外的城市会
+  -- 一个人都匹配不上（人在杭州只选北京 = 永远收不到引荐）。
+  -- 界面在这一点上要给出提示，见 web/src/routes/preferences.tsx。
+  AND (?::int[] IS NULL OR p.city_code = ANY(?::int[]))
   -- 排重：没有未终结的引荐，也没有已经成过匹配的
   --
   -- matched 要一起排掉，而 declined / expired 不能：M3 起「成匹配」是一种
@@ -162,7 +178,8 @@ func (r *Repo) FetchCandidates(ctx context.Context, q CandidateQuery) ([]Candida
 		q.MyBirthYM,                        // 他的上限收得下我
 		q.PrefBirthYMMin, q.PrefBirthYMMin, // 我的下限（判两次是为了让 NULL 短路成立）
 		q.PrefBirthYMMax, q.PrefBirthYMMax, // 我的上限
-		q.MyCityCode,   // 我的城市在他接受的城市里
+		q.MyCityCode,             // 我的城市在他接受的城市里
+		q.CityCodes, q.CityCodes, // 他的城市在我期望的城市里（判两次是为了让 NULL 短路成立）
 		q.MeID, q.MeID, // 没有未终结的引荐
 		q.MeID, q.MeID, // 没拉黑
 		q.MyCityCode, q.MyCityCode, // 同城或同省
