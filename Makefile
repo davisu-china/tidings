@@ -95,3 +95,13 @@ e2e-settings: ## 网页验收：偏好设置的读写与校验、通知与暂停
 .PHONY: seed
 seed: ## 灌一批合格账号进池子（引荐引擎要有足够的人才会开始配）
 	cd $(BACKEND) && node scripts/seed-pool.mjs
+
+.PHONY: seed-prod
+seed-prod: ## 往生产灌池子（默认 120 个上海人，分批绕开单 IP 注册上限）
+	$(BACKEND)/scripts/seed-prod.sh
+
+# ---------------------------------------------------------------- 部署
+
+.PHONY: deploy-prod
+deploy-prod: ## 部署到 tidings.jianjiange.site（rsync → 构建 → 证书 → vhost）
+	$(CURDIR)/deploy/deploy.sh

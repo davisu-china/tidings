@@ -1,0 +1,194 @@
+# Tidings · 生产编排（京东云 111.228.14.136）
+#
+# 与 deploy/docker-compose.yml（本地开发）是两份**独立**文件，不是 override：
+# compose 的 ports 是追加语义，override 去不掉开发那份里已发布的
+# 5434/6380/9200/9201 —— 拿 override 做生产，等于把数据库和 MinIO 控制台
+# 一起挂到公网上。
+#
+# 家法与 /opt/jianjian、/opt/bujiangjiu 一致：
+#   - 宿主机上有一个共享 nginx 容器 jianjian-nginx（80/443），每个子域一段
+#     vhost，通过外部网络 dev-ops_my-network 按容器名反代到各站的容器。
+#   - 所以 web / api / media 接两张网：shared（给 nginx 反代）+
+#     本站私有网 app（给自家容器互访）。
+#   - postgres / redis / minio **只接私有网**。服务名会变成网络别名，这三个
+#     名字一旦出现在共享网络上，jianjian-backend 与 bujiangjiu-api 解析到的
+#     postgres/redis 就会被本站顶掉 —— 加一个站，崩两个站。所以本站的服务名
+#     也一律带 tidings- 前缀，共享网上的别名天然唯一。
+#
+# 用法（服务器上，/opt/tidings/deploy）：
+#   ./deploy.sh          # 从开发机跑，会 rsync 上来并处理 .env
+#   docker compose -f docker-compose.prod.yml ps
+#
+# 域名相关的四项（APP_ENV / MEDIA_BASE_URL / MINIO_PUBLIC_ENDPOINT /
+# MINIO_PUBLIC_USE_SSL）故意写在这里而不是只留在 .env：.env 是从开发那份
+# 抄过去改的，抄漏一项的后果是预签名 URL 指向 localhost:8093 ——
+# 症状是「照片传上去了但显示不出来」，跟配置错看起来毫无关系。
+
+name: tidings
+
+networks:
+  # 共享网络：只有需要被 nginx 反代的容器才接
+  shared:
+    external: true
+    name: dev-ops_my-network
+  # 本站私有网络：数据库、缓存、对象存储只在这里
+  app:
+
+services:
+  tidings-postgres:
+    image: postgres:16-alpine
+    container_name: tidings-postgres
+    restart: unless-stopped
+    networks: [app]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  tidings-redis:
+    image: redis:7-alpine
+    container_name: tidings-redis
+    restart: unless-stopped
+    networks: [app]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  tidings-minio:
+    image: minio/minio:latest
+    container_name: tidings-minio
+    restart: unless-stopped
+    networks: [app]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  # MinIO 对外入口：/img/ 读图 + /<bucket>/ 预签名直传落点。
+  # 用 nginx 挡在前面而不是直接暴露 minio:9000，管理面（9001）就不出去。
+  tidings-media:
+    image: nginx:1.27-alpine
+    container_name: tidings-media
+    restart: unless-stopped
+    networks: [app, shared]
+    environment:
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_UPSTREAM: tidings-minio:9000
+      # nginx 官方镜像把 templates/ 下的文件做变量替换后写进 conf.d。
+      # FILTER 限定只替换 MINIO_*，否则 envsubst 会把模板里 nginx 自己的
+      # $host、$remote_addr 也一并吃掉。
+      NGINX_ENVSUBST_TEMPLATE_SUFFIX: .template
+      NGINX_ENVSUBST_FILTER: "^MINIO_"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports:
+      - "127.0.0.1:8183:80"
+    depends_on:
+      tidings-minio:
+        condition: service_healthy
+
+  # 前端静态产物。只做静态与 SPA 回落，/api/ 与 /img/ 由共享 nginx 直接
+  # 转给 api 与 media（与不将就一致）—— 少一跳，也少一处要维护的配置。
+  tidings-web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    container_name: tidings-web
+    restart: unless-stopped
+    networks: [app, shared]
+    ports:
+      - "127.0.0.1:8181:80"
+
+  tidings-api:
+    build:
+      context: ../backend
+      args:
+        TARGET: api
+        # 国内服务器直连 proxy.golang.org 不通
+        GOPROXY: https://goproxy.cn,direct
+    container_name: tidings-api
+    restart: unless-stopped
+    networks: [app, shared]
+    env_file: .env
+    environment:
+      APP_ENV: production
+      MINIO_PUBLIC_ENDPOINT: tidings.jianjiange.site
+      MINIO_PUBLIC_USE_SSL: "true"
+      MEDIA_BASE_URL: https://tidings.jianjiange.site
+      # 内网连接目标同样必须写死。.env 是从开发那份抄的，里面写的是
+      # postgres / redis / minio 这三个 compose 服务名；生产这份服务名带
+      # 前缀，而共享网络上还跑着别的站的 postgres 与 redis —— 照抄的值会
+      # 连到**别人的**库上（密码不对时只是一句 password authentication
+      # failed，密码恰好相同就是在别人的库里建表）。
+      POSTGRES_HOST: tidings-postgres
+      REDIS_ADDR: tidings-redis:6379
+      MINIO_ENDPOINT: tidings-minio:9000
+    ports:
+      # 只绑回环：gin 信任所有代理（没有 SetTrustedProxies），
+      # ClientIP() 取的是 X-Forwarded-For 最左一项。直接暴露到公网，
+      # 等于把「单 IP 每日注册上限」交给调用方自己填。
+      - "127.0.0.1:8182:8080"
+    depends_on:
+      tidings-postgres:
+        condition: service_healthy
+      tidings-redis:
+        condition: service_healthy
+      tidings-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # 后台任务：引荐生成与超时收尾。与 api 同一个镜像、同一份配置，
+  # 业务规则一份都不复制。不接共享网 —— 它不对外服务。
+  # 迁移只在 api 启动时跑（cmd/api 里无条件 migrate，worker 不跑），
+  # 所以这里 depends_on api 而不是 postgres：worker 先起会空转一轮。
+  tidings-worker:
+    build:
+      context: ../backend
+      args:
+        TARGET: worker
+        GOPROXY: https://goproxy.cn,direct
+    container_name: tidings-worker
+    restart: unless-stopped
+    networks: [app]
+    env_file: .env
+    environment:
+      APP_ENV: production
+      MINIO_PUBLIC_ENDPOINT: tidings.jianjiange.site
+      MINIO_PUBLIC_USE_SSL: "true"
+      MEDIA_BASE_URL: https://tidings.jianjiange.site
+      POSTGRES_HOST: tidings-postgres
+      REDIS_ADDR: tidings-redis:6379
+      MINIO_ENDPOINT: tidings-minio:9000
+    depends_on:
+      tidings-api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

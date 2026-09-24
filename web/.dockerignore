@@ -1,0 +1,9 @@
+# 构建上下文只该包含源码与配置。
+# node_modules 在镜像里由 npm ci 重装（宿主机的可能是 darwin 架构的），
+# dist 由镜像内的构建产出，scripts 是跑在开发机上的 Puppeteer 验收脚本。
+node_modules
+dist
+dev-dist
+scripts
+.vite
+*.log

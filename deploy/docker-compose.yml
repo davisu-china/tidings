@@ -81,6 +81,9 @@ services:
     restart: unless-stopped
     environment:
       MINIO_BUCKET: ${MINIO_BUCKET}
+      # 模板里的上游地址。开发与生产这里不一样：生产那份编排里对象存储的
+      # 服务名是 tidings-minio（带前缀是为了不在共享网络上跟别的站撞名）。
+      MINIO_UPSTREAM: minio:9000
       # nginx 官方镜像会把 templates 下的文件做变量替换后写入 conf.d。
       # FILTER 限定只替换 MINIO_* —— 否则 envsubst 会把模板里的
       # $host、$remote_addr 这些 nginx 自己的变量也一并吃掉。
