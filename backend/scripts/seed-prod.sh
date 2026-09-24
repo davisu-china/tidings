@@ -75,5 +75,5 @@ echo "共请求 $done_total 个。核对池子规模（必须 ≥ INTRO_POOL_MIN
 ssh "$REMOTE" "docker exec tidings-postgres psql -U tidings -d tidings -tAc \"
   SELECT p.city_code, count(*)
   FROM profiles p JOIN users u ON u.id = p.user_id
-  WHERE u.status = 'active' AND p.completeness >= 60 AND p.gender IS NOT NULL
+  WHERE u.status = 'active' AND p.gender IS NOT NULL
   GROUP BY p.city_code ORDER BY 2 DESC\""

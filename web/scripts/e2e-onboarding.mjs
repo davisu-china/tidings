@@ -1,6 +1,10 @@
 /**
  * 用真 Chrome 走一遍 M1 的验收路径：
- * 注册 → 建档四步 → 头像 + 照片 → status 翻成 active（第 1 张照片落库时就翻）。
+ * 注册 → 建档五步 → 头像 + 照片 → status 翻成 active。
+ *
+ * v1.7 起五步全是必填，翻牌因此发生在**最后一步提交之后**，不再是第 1 张
+ * 照片落库的时候。脚本里三处断言分别守着这条链路的三个点：0 张照片时缺
+ * photos、第 1 张之后不再缺 photos、第五步补齐之后才 active。
  *
  * 照片传 3 张不是为了过门槛（门槛是 1 张，脚本里也断言了这一点），
  * 而是为了让下面的拖拽排序有得拖 —— 排序至少要 2 张才测得出东西。
@@ -201,6 +205,17 @@ try {
     await h.dispose()
     throw new Error(`点不到「${text}」：位置一直在动，或者被别的元素盖着`)
   }
+
+  /**
+   * 在指定字段的选项组里点一项。
+   *
+   * 不能只用 clickText 按文字找：吸烟和饮酒共用同一套选项（不 / 偶尔 / 经常），
+   * 按文字找会永远点中先出现的那一组，另一组怎么点都不动 —— 症状是「填完了
+   * 却校验不过」。Field 给分组控件挂的是 aria-labelledby="<字段>-label"，
+   * 顺着它就能定位到唯一那一组。
+   */
+  const choose = (field, label) =>
+    clickText(`[role=radiogroup][aria-labelledby="${field}-label"] [role=radio]`, label)
 
   // ---------- 底部弹层与滚轮 ----------
   //
@@ -491,11 +506,15 @@ try {
   await waitText('头像已就位', 30000)
   log(true, '头像通过正脸检测并已生效')
 
-  // 「1 张就够」的机器证明，两条缺一不可：
+  // 「1 张就够」的机器证明，两条缺一不可：上传第 1 张**之前**先钉一次反面
+  // （0 张时 missing_required 里得有 photos），之后钉正面（第 1 张落库后它就该
+  // 消失）。把整个照片检查删掉（0 张也放行）只能过后者，两条合起来才是
+  // 「门槛恰好是 1」。
   //
-  // 只测第 1 张上传后翻 active 是不够的 —— 把整个照片检查删掉（0 张也放行）
-  // 也能过。所以上传第 1 张**之前**先钉一次反面：0 张时还卡在 onboarding、
-  // missing_required 里得有 photos。两条合起来才是「门槛恰好是 1」。
+  // 这里看的是 missing_required 而不是 status：v1.7 起第五步那 11 项也是必填，
+  // 所以照片够了 status 也还是 onboarding。用 status 判会把「照片门槛」和
+  // 「整张门槛」搅在一起，那正是这条断言最不该含混的地方 —— 翻牌由下面
+  // 第五步走完之后那条断言单独负责。
   const beforePhoto = await apiMe()
   log(
     beforePhoto.status === 'onboarding' && beforePhoto.missing_required.includes('photos'),
@@ -508,11 +527,12 @@ try {
     await waitText(`已选 ${i + 1} 张`, 30000)
 
     if (i === 0) {
-      // 必须在传第 2 张之前问：再往后问就分不清是第几张翻的牌了
+      // 必须在传第 2 张之前问：再往后问就分不清是第几张满足的了。
+      // 照片之外还可能缺别的（第五步那 11 项），所以只断言 photos 这一项。
       const afterFirst = await apiMe()
       log(
-        afterFirst.status === 'active' && !afterFirst.missing_required.includes('photos'),
-        `第 1 张落库就入池（status=${afterFirst.status}，缺 ${afterFirst.missing_required.join('、') || '无'}）`,
+        !afterFirst.missing_required.includes('photos'),
+        `第 1 张落库就不再缺照片（还缺：${afterFirst.missing_required.join('、') || '无'}）`,
       )
     }
   }
@@ -558,13 +578,15 @@ try {
   await shot('05b-photos-reordered')
 
   await clickText('button', '下一步')
-  await waitText('也可以留到以后再说')
+  await waitText('都填上才能进池子')
   log(true, '照片满足门槛，可以继续')
 
-  // 进池状态在第 1 张落库时就已经翻了（上面已断言），这里确认它没被后面的操作带歪
-  const status = await apiMe()
-  log(status.status === 'active', `走完照片步后 /me 的 status = ${status.status}`)
-  log(status.next_step === 'home', `/me 的 next_step = ${status.next_step}`)
+  // 照片传完了，但还没进池 —— 第五步的 11 项现在也是必填。
+  // 这一条钉住的是 v1.7 的门槛改动：以前走到这里 status 就已经是 active 了，
+  // 于是第五步整块可以被跳过，也就没人填。
+  const midway = await apiMe()
+  log(midway.status === 'onboarding', `照片传完、补充没填，status 仍是 ${midway.status}`)
+  log(midway.next_step === 'onboarding', `/me 的 next_step = ${midway.next_step}`)
 
   // ---------- 第 4 步：补充 ----------
   // 家乡和所在城市是同一个控件，只是 idBase 和标题不同
@@ -577,9 +599,15 @@ try {
   log(hometown === '南京', `家乡两级滚轮：江苏 → ${hometown}`)
 
   await page.type('#occupation', '产品经理')
+  await page.type('#company', '某出版社')
+  await choose('income_band', '50–100 万')
+  await choose('smoking', '不')
+  await choose('drinking', '偶尔')
   await page.type('#hobbies', '摄影、徒步、做饭')
-  await clickText('[role=radio]', '50–100 万')
-  await clickText('[role=radio]', '早睡早起')
+  await page.type('#intro', '喜欢摄影和徒步，周末多半在外面。')
+  await page.type('#expectation', '想找一个愿意一起出门的人。')
+  await choose('want_child', '再说')
+  await choose('marital_status', '未婚')
   await shot('06-onboarding-more')
 
   await clickText('button', '完成，去首页')
@@ -587,6 +615,11 @@ try {
   await waitText('暂时没有新的引荐')
   log(true, '向导完成，落到首页空状态')
   await shot('07-home')
+
+  // 走完最后一步才翻牌。放在这里而不是上面，是为了让它真的验到「第五步
+  // 也进了门槛」—— 上面的 midway 断言查的是反面，这一条查正面。
+  const after = await apiMe()
+  log(after.status === 'active', `补全之后 /me 的 status = ${after.status}`)
 
   // ---------- 回填检查（19.6 第一个洞） ----------
   await page.goto(`${BASE}/me/edit`, { waitUntil: 'domcontentloaded' })
@@ -609,6 +642,11 @@ try {
       city: t('#city_code'),
       hometown: t('#hometown_code'),
       occupation: v('#occupation'),
+      // 公司与期待是这次新转必填的两项，也正是线上从来没人填过的两项
+      // （124/125、125/125 空）。回填是它们唯一可能静默出错的地方：
+      // 后端有值但表单没接上，用户看到的是一个空白框，再点保存就把它清空了。
+      company: v('#company'),
+      expectation: v('#expectation'),
       school: v('#school_name'),
       gender: [...document.querySelectorAll('[role=radio][aria-checked=true]')].map((e) => e.textContent),
     }
@@ -621,6 +659,8 @@ try {
       refilled.city === '上海' &&
       refilled.hometown === '南京' &&
       refilled.occupation === '产品经理' &&
+      refilled.company === '某出版社' &&
+      refilled.expectation === '想找一个愿意一起出门的人。' &&
       refilled.school === '复旦大学' &&
       refilled.gender.includes('女'),
     `编辑页回填正确：${JSON.stringify(refilled)}`,
@@ -665,8 +705,13 @@ try {
   // 拿 missing 当入池判据就错了：那批人什么都没做，却会被告知自己不在池子里。
   // 直接改库造出这个状态 —— 走接口造不出来，因为现在的校验不会让人以缺项的
   // 状态进池，而正是「造不出来的状态」最容易在改动里被漏掉。
+  // 清掉的两项一新一旧：school_name 是上一批加的，company / expectation 是
+  // v1.7 这批加的。都清才能同时守住「加过一次项」和「加过第二次项」这两条路，
+  // 而第二次加项正是把线上 0/125 的人挡在池子外的那一次。
   const uid = `(select id from users where email = '${email}')`
-  psql(`update profiles set school_name = '' where user_id = ${uid}`)
+  psql(
+    `update profiles set school_name = '', company = '', expectation = '' where user_id = ${uid}`,
+  )
   await page.goto(`${BASE}/me`, { waitUntil: 'domcontentloaded' })
   await waitText('去补全')
   const stillIn = await page.evaluate(() =>
@@ -679,7 +724,10 @@ try {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
   await waitText('去补全')
   log(true, '首页空状态同样给出补全入口')
-  psql(`update profiles set school_name = '复旦大学' where user_id = ${uid}`)
+  psql(
+    `update profiles set school_name = '复旦大学', company = '某出版社', ` +
+      `expectation = '想找一个愿意一起出门的人。' where user_id = ${uid}`,
+  )
 
   // ---------- 路由守卫 ----------
   await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' })

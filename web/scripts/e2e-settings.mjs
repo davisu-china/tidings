@@ -143,18 +143,23 @@ async function createActiveAccount() {
       birth_ym: 199508,
       city_code: 310000,
       height_cm: 165,
-      // 体重与毕业院校是入池必填（见 profile.go 的 requiredMissing）。
-      // 少了这两项这个账号会停在 onboarding，下面的 active 断言直接炸。
+      // 入池必填一共 20 项（见 profile.go 的 requiredMissing），这里要一次
+      // 给全 —— 少任何一项这个账号都会停在 onboarding，下面那句 active
+      // 断言直接炸。加必填项时这里必须跟着加。
       weight_kg: 52,
       education_level: 3,
       school_name: '复旦大学',
+      hometown_code: 310000,
       occupation: '编辑',
+      company: '某出版社',
       income_band: 3,
-      chronotype: 1,
-      want_child: 3,
-      marital_status: 1,
+      smoking: 0,
+      drinking: 1,
       hobbies: '徒步、摄影',
       intro: '喜欢摄影和徒步，周末多半在外面。',
+      expectation: '想找一个愿意一起出门的人。',
+      want_child: 3,
+      marital_status: 1,
     },
   })
   await api('/me/avatar', {

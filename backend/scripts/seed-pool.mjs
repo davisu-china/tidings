@@ -68,6 +68,10 @@ const OCCUPATIONS = ['产品经理', '后端工程师', '中学教师', '外科�
 // internal/pkg/schools 里查 school_tier，编出来的名字查不到层级，
 // 池子里的 tier 会整列落空，而 tier 是要参与匹配的。
 const SCHOOLS = ['复旦大学', '浙江大学', '南京大学', '武汉大学', '中山大学', '四川大学']
+// 工作单位与「对另一半的期待」也是必填（v1.7）。这两个字段以前在池子里
+// 整列为空 —— 公司 124/125 空、期望 125/125 空，是这次加门槛的直接证据。
+// 用泛指的机构名而不是真实公司，免得种出来的数据被当成真的任职信息。
+const COMPANIES = ['某互联网公司', '某设计院', '某三甲医院', '某中学', '某出版社', '某律所', '某研究院']
 const HOBBIES = ['徒步', '摄影', '做饭', '羽毛球', '看展', '骑行', '养猫', '爬山', '古典乐', '下厨', '潜水', '写字']
 const INTROS = [
   '喜欢摄影和徒步，周末多半在外面。工作日反而安静，下班回家做饭。',
@@ -77,7 +81,18 @@ const INTROS = [
   '南方人，来了几年。喜欢这座城市的秋天。',
   '工作忙，但会留出周日下午完全不安排。',
   '喜欢看展和逛旧书店，一个人也能逛一下午。',
-  '养了一只猫。作息规律，早睡早起。',
+  '养了一只猫，生活比较规律。',
+]
+
+const EXPECTATIONS = [
+  '希望对方有事可做、有话说，不必和我一样。',
+  '想找一个能一起吃饭、也各自安静待着的人。',
+  '认真过日子的就行，爱好不必相同。',
+  '希望对方愿意出门，也愿意在家待着。',
+  '看重情绪稳定，其他都可以慢慢了解。',
+  '想找一个愿意把周末留出来的人。',
+  '希望对方有自己的生活，不依附也不疏远。',
+  '踏实、说话算数，这两条比什么都重要。',
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -132,14 +147,17 @@ function profileFor(i) {
     weight_kg: male ? 62 + (i % 15) : 48 + (i % 12),
     school_name: SCHOOLS[i % SCHOOLS.length],
     occupation: OCCUPATIONS[i % OCCUPATIONS.length],
-    company: '',
+    // 公司与期望以前留空（那时它们是选填），v1.7 起是必填 ——
+    // 空着的话整个池子都停在 onboarding，而症状看起来像匹配引擎没跑。
+    company: COMPANIES[i % COMPANIES.length],
     income_band: (i % 6) + 1,
-    chronotype: (i % 3) + 1,
     smoking: [0, 0, 1, 0][i % 4],
     drinking: (i % 2),
     hobbies: [HOBBIES[i % HOBBIES.length], HOBBIES[(i + 3) % HOBBIES.length]].join('、'),
     intro: INTROS[i % INTROS.length],
-    expectation: '',
+    // 顺便在数据里走一遍「期望」这条链路：它是硬条件之外唯一影响
+    // 引荐卡文案的长文本，之前的池子里一个字都没有过。
+    expectation: EXPECTATIONS[i % EXPECTATIONS.length],
     // 婚育与婚史：三项里「想要」与「不要」撞上就淘汰（§12.1）。
     // 测试池里全填「再说」，配合下面偏好侧的 want_child 留空，
     // 让硬条件不成为这一轮生不出引荐的原因。

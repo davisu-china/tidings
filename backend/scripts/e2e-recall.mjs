@@ -168,16 +168,24 @@ async function createSubject(stamp) {
       birth_ym: 199508,
       city_code: HOME,
       height_cm: 166,
+      // 20 项必填要一次给全，否则账号停在 onboarding，
+      // 下面那句 `status !== 'active'` 会先炸。加必填项时这里必须跟着加。
+      weight_kg: 52,
       education_level: 3,
+      school_name: '复旦大学',
+      hometown_code: HOME,
       occupation: '编辑',
+      company: '某出版社',
       income_band: 3,
-      chronotype: 1,
+      smoking: 0,
+      drinking: 1,
       // 婚育与婚史都填「再说 / 未婚」，与种子里的人同款 ——
       // 硬条件里这两项撞上就淘汰，本脚本要验的是城市，不是它们。
       want_child: 3,
       marital_status: 1,
       hobbies: '徒步、摄影',
       intro: '喜欢摄影和徒步，周末多半在外面。',
+      expectation: '想找一个愿意一起出门的人。',
     },
   })
   await api('/me/avatar', {
@@ -307,14 +315,14 @@ seedCity(OTHER, `recall-sz-${stamp}`, POOL)
 const pools = psql(`
   SELECT p.city_code || '=' || count(*)
   FROM profiles p JOIN users u ON u.id = p.user_id
-  WHERE u.status = 'active' AND p.completeness >= 60 AND p.gender IS NOT NULL
+  WHERE u.status = 'active' AND p.gender IS NOT NULL
     AND p.city_code IN (${HOME}, ${OTHER})
   GROUP BY p.city_code ORDER BY p.city_code`)
 console.log(`  ✓ 池子规模：${pools.split('\n').join(' / ')}`)
 for (const city of [HOME, OTHER]) {
   const n = Number(psql(`
     SELECT count(*) FROM profiles p JOIN users u ON u.id = p.user_id
-    WHERE u.status = 'active' AND p.completeness >= 60 AND p.gender IS NOT NULL
+    WHERE u.status = 'active' AND p.gender IS NOT NULL
       AND p.city_code = ${city}`))
   ok(n >= POOL, `${nameOf(city)} 有 ${n} 个人，够 INTRO_POOL_MIN（${POOL}）—— 不够的话整个城市会被跳过`)
 }

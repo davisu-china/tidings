@@ -150,14 +150,22 @@ async function createAccount(i, stamp) {
       birth_ym: f.birthYM,
       city_code: 110000,
       height_cm: f.height,
+      // 20 项必填要一次给全，否则账号停在 onboarding，
+      // 下面那句 `status !== 'active'` 会先炸。加必填项时这里必须跟着加。
+      weight_kg: 60,
       education_level: 3,
+      school_name: '复旦大学',
+      hometown_code: 110000,
       occupation: f.occupation,
+      company: '某互联网公司',
       income_band: 3,
-      chronotype: 1,
-      want_child: 3,
-      marital_status: 1,
+      smoking: 0,
+      drinking: 1,
       hobbies: '徒步、摄影',
       intro: '喜欢摄影和徒步，周末多半在外面。',
+      expectation: '想找一个愿意一起出门的人。',
+      want_child: 3,
+      marital_status: 1,
     },
   })
 

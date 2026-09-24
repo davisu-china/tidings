@@ -178,14 +178,22 @@ async function createAccount(i, stamp) {
       birth_ym: f.birthYM,
       city_code: 110000,
       height_cm: f.height,
+      // 20 项必填要一次给全，否则账号停在 onboarding，
+      // 下面那句 `status !== 'active'` 会先炸。加必填项时这里必须跟着加。
+      weight_kg: 60,
       education_level: 3,
+      school_name: '复旦大学',
+      hometown_code: 110000,
       occupation: f.occupation,
+      company: '某互联网公司',
       income_band: 3,
-      chronotype: 1,
-      want_child: 3,
-      marital_status: 1,
+      smoking: 0,
+      drinking: 1,
       hobbies: '徒步、摄影',
       intro: '喜欢摄影和徒步，周末多半在外面。',
+      expectation: '想找一个愿意一起出门的人。',
+      want_child: 3,
+      marital_status: 1,
     },
   })
 
@@ -568,11 +576,16 @@ try {
   const lRow = outboxRow(l.id, 'intro_missed') ?? ''
   const [lStatus] = lRow.split('|')
   ok(lStatus === 'pending', '落在静默时段里：它仍是 pending，没有被投出去，也没有被判失败')
-  ok(
-    psql(`SELECT next_retry_at > now() FROM outbox WHERE user_id = ${l.id} AND template = 'intro_missed'
-          ORDER BY id DESC LIMIT 1`) === 't',
-    '它被推迟到了静默时段结束之后，而不是丢掉',
-  )
+  // 轮询，而不是再 sleep 一个定值：outbox 循环两秒一轮，固定睡 5 秒偶尔
+  // 还是赶在它前面 —— 那时 next_retry_at 还停在入队那一刻（过去），
+  // 断言假失败，而失败的样子和「推迟逻辑真的坏了」一模一样。
+  const lDeferred = await until(() => {
+    const r = psql(`SELECT next_retry_at > now() FROM outbox
+                    WHERE user_id = ${l.id} AND template = 'intro_missed'
+                    ORDER BY id DESC LIMIT 1`)
+    return r === 't' ? r : null
+  })
+  ok(!!lDeferred, '它被推迟到了静默时段结束之后，而不是丢掉')
 
   // 把静默时段挪开，它就该被投出去了（L 没有订阅 → 会被记成 no_subscription，
   // 但那已经走过闸门了，正是我们要看的）
@@ -595,7 +608,35 @@ try {
   section('七、未响应冻结：连推两条未打开就停推，访问一次解冻')
 
   const m = await createAccount(0, stamp + 'y')
+
+  // 显式关掉静默时段，再订阅。不设这一句的话读到的是默认的 22:00–09:00，
+  // 而这一段验的是「真的投出去」—— 在北京时间夜里跑，四条通知会全体停在
+  // pending、next_retry_at 正好落在静默结束那一刻，看起来像推送链路坏了。
+  // 五、六、八三段都设了，只有这里漏了，所以这套用例只在白天绿。
+  await need('/me/settings', {
+    method: 'PUT',
+    token: m.token,
+    body: { intros_paused: false, quiet_start: 0, quiet_end: 0 },
+  })
   await subscribeFake(m, fake.url)
+
+  // 把 m 摘出候选池（status 不再是 active）。
+  //
+  // 这一段验的是「投递成功 → 未打开计数 +1 → 连推两条冻上」这条链路，
+  // 而它订阅了假端点。池子里留着它的话，后台每 30 秒生成一轮引荐，
+  // 那些通知走的是同一条 outbox、投的是同一个假端点 —— 计数于是不再
+  // 等于 1，最新那条 intro_delivered 也未必是这一段自己排的那条。
+  // 实测五次里有一次「一次还没冻上」直接变红，且只在本地池子被种大
+  // （seed-pool / e2e-recall 跑过）之后才出现。
+  //
+  // 摘出去不影响要验的东西：投递端不看 status，worker/outbox.go 的三道闸
+  // 只读 user_settings。
+  psql(`UPDATE users SET status = 'under_review' WHERE id = ${m.id}`)
+
+  // 上面那句和建档之间还有几毫秒，刚好撞上生成轮次的话 m 名下会先落几条
+  // 生成出来的通知。清一遍，让下面的计数从 0 开始 —— 这一段的前提就是
+  // 「这个账号名下只有我自己排的这几条」。
+  psql(`DELETE FROM outbox WHERE user_id = ${m.id}`)
 
   // 第 1 条：投递成功，计数 0 → 1，还没冻
   queueNotify(m.id, 'intro_delivered', `${stamp}-m1`)
