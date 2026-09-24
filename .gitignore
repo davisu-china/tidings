@@ -1,0 +1,29 @@
+# --- Go ---
+/backend/bin/
+*.exe
+*.test
+*.out
+vendor/
+
+# --- Node ---
+node_modules/
+/web/dist/
+/web/.vite/
+*.local
+
+# --- 环境与密钥 ---
+.env
+.env.*
+!.env.example
+
+# --- 运行时数据卷 ---
+/deploy/data/
+
+# --- 编辑器与系统 ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- 构建缓存 ---
+*.tsbuildinfo

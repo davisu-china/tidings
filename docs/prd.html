@@ -1,0 +1,2020 @@
+<title>Tidings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    color-scheme: light;
+    --paper:      #EFF1EC;
+    --surface:    #FFFFFF;
+    --surface-2:  #E7EAE4;
+    --ink:        #151C1B;
+    --ink-2:      #35403E;
+    --muted:      #5A6866;
+    --line:       #D6DAD3;
+    --line-soft:  #E4E7E1;
+    --accent:     #1B6A60;
+    --accent-ink: #12544C;
+    --accent-soft:#DCE8E4;
+    --seal:       #9E3928;
+    --seal-soft:  #F0E1DD;
+    --on-accent:  #FFFFFF;
+    --shadow:     0 6px 22px rgba(21, 28, 27, .10);
+
+    --serif: "Noto Serif SC", "Songti SC", "Source Han Serif SC", serif;
+    --sans:  "Noto Sans SC", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono:  "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper:      #0D1413;
+      --surface:    #151D1C;
+      --surface-2:  #1C2523;
+      --ink:        #E7EDEA;
+      --ink-2:      #C3CDC9;
+      --muted:      #92A19D;
+      --line:       #28322F;
+      --line-soft:  #1F2927;
+      --accent:     #63B7A9;
+      --accent-ink: #8ACFC2;
+      --accent-soft:#16302C;
+      --seal:       #D98270;
+      --seal-soft:  #33211D;
+      --on-accent:  #0D1413;
+      --shadow:     0 6px 22px rgba(0, 0, 0, .45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:      #0D1413;
+    --surface:    #151D1C;
+    --surface-2:  #1C2523;
+    --ink:        #E7EDEA;
+    --ink-2:      #C3CDC9;
+    --muted:      #92A19D;
+    --line:       #28322F;
+    --line-soft:  #1F2927;
+    --accent:     #63B7A9;
+    --accent-ink: #8ACFC2;
+    --accent-soft:#16302C;
+    --seal:       #D98270;
+    --seal-soft:  #33211D;
+    --on-accent:  #0D1413;
+    --shadow:     0 6px 22px rgba(0, 0, 0, .45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    padding-inline: 24px;
+    padding-block: 0;
+  }
+
+  .wrap { max-width: 1180px; margin-inline: auto; }
+
+  /* ---------- 文档头 ---------- */
+
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    padding-block: 64px 40px;
+    margin-bottom: 48px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(38px, 6.4vw, 60px);
+    line-height: 1.12;
+    letter-spacing: .02em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .latin {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(19px, 2.8vw, 26px);
+    letter-spacing: .17em;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+
+  .tagline {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(17px, 2.1vw, 21px);
+    color: var(--accent-ink);
+    margin: 0 0 28px;
+    text-wrap: balance;
+  }
+
+  .metagrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 18px 28px;
+    max-width: 780px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .metagrid dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+
+  .metagrid dd {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+
+  /* ---------- 布局 ---------- */
+
+  .doc {
+    display: grid;
+    grid-template-columns: 208px minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+    padding-bottom: 96px;
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 28px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+
+  nav.toc h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+  nav.toc a {
+    color: var(--ink-2);
+    text-decoration: none;
+    display: flex;
+    gap: 9px;
+    padding: 4px 8px 4px 0;
+    border-radius: 4px;
+  }
+
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  nav.toc .n {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    padding-top: 2px;
+    min-width: 15px;
+    flex: none;
+  }
+
+  main { min-width: 0; display: flex; flex-direction: column; gap: 60px; }
+
+  /* ---------- 章节 ---------- */
+
+  section { scroll-margin-top: 24px; }
+
+  h2.sec {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(23px, 3vw, 29px);
+    line-height: 1.3;
+    margin: 0 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    text-wrap: balance;
+  }
+
+  h2.sec .num {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+    flex: none;
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 18.5px;
+    line-height: 1.4;
+    margin: 36px 0 12px;
+    text-wrap: balance;
+  }
+
+  h3 .num { font-family: var(--mono); font-size: 13px; color: var(--muted); font-weight: 500; margin-right: 8px; }
+
+  h4 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 15px;
+    margin: 24px 0 8px;
+    color: var(--ink);
+  }
+
+  p { margin: 0 0 14px; max-width: var(--measure); }
+  main > section > p, main > section > ul, main > section > ol { max-width: var(--measure); }
+
+  ul, ol { padding-left: 22px; margin: 0 0 14px; max-width: var(--measure); }
+  li { margin-bottom: 6px; }
+  li > ul, li > ol { margin-top: 6px; }
+
+  strong { font-weight: 700; }
+  em { font-style: normal; color: var(--accent-ink); font-weight: 500; }
+
+  code {
+    font-family: var(--mono);
+    font-size: .875em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--ink-2);
+  }
+
+  a { color: var(--accent); }
+
+  /* ---------- 表格 ---------- */
+
+  .tw { overflow-x: auto; margin: 18px 0 24px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.6; }
+
+  th {
+    text-align: left;
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: .02em;
+    color: var(--muted);
+    background: var(--surface-2);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ---------- 标注 ---------- */
+
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 6px 6px 0;
+    padding: 18px 22px;
+    margin: 22px 0;
+    max-width: var(--measure);
+  }
+
+  .callout.warn { border-left-color: var(--seal); }
+  .callout h4 { margin-top: 0; }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+
+  .callout .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .callout.warn .label { color: var(--seal); }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    vertical-align: 1px;
+    white-space: nowrap;
+  }
+  .pill.inherit { background: var(--accent-soft); color: var(--accent-ink); }
+  .pill.new     { background: var(--seal-soft);  color: var(--seal); }
+  .pill.hard    { background: var(--seal-soft);  color: var(--seal); }
+  .pill.soft    { background: var(--accent-soft); color: var(--accent-ink); }
+
+  /* ---------- 流程条 ---------- */
+
+  .flow { list-style: none; padding: 0; margin: 22px 0; display: flex; flex-wrap: wrap; gap: 8px; max-width: none; }
+  .flow li {
+    flex: 1 1 132px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent);
+    border-radius: 0 0 5px 5px;
+    padding: 11px 13px 12px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .flow li b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+  .flow li span { color: var(--muted); font-size: 12px; }
+
+  /* ---------- 推送通知样机 ---------- */
+
+  .mockrow { display: flex; flex-wrap: wrap; gap: 20px; margin: 22px 0; align-items: flex-start; }
+
+  .push {
+    flex: 1 1 320px;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    display: flex;
+    gap: 13px;
+  }
+
+  .push .mark {
+    width: 36px; height: 36px; flex: none;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: grid; place-items: center;
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 18px;
+  }
+
+  .push .body { min-width: 0; }
+  .push .app { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .push .title { font-weight: 700; font-size: 14.5px; margin: 1px 0 2px; }
+  .push .text { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
+  .push .when { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+
+  .mockcap {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  .mockcap.bad { color: var(--seal); }
+
+  /* ---------- 引荐卡样机 ---------- */
+
+  .rec {
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .rec .head {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    color: var(--muted);
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .rec .photo {
+    aspect-ratio: 4 / 3;
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--paper) 12px 24px);
+    display: grid; place-items: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+  }
+
+  .rec .info { padding: 16px 18px 18px; }
+  .rec .who { font-family: var(--serif); font-weight: 700; font-size: 18px; margin-bottom: 2px; }
+  .rec .sub { font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .rec .facts { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+
+  .rec .why { list-style: none; padding: 0; margin: 0 0 16px; font-size: 13.5px; line-height: 1.6; display: flex; flex-direction: column; gap: 7px; }
+  .rec .why li { margin: 0; padding-left: 17px; position: relative; }
+  .rec .why li::before {
+    content: "";
+    position: absolute; left: 0; top: .62em;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: .55;
+  }
+
+  .rec .acts { display: flex; gap: 9px; }
+  .rec .acts span {
+    flex: 1;
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 8px 0;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .rec .acts span.go { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+  /* ---------- 指标 ---------- */
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 22px 0; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 15px 17px 16px; }
+  .kpi .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .kpi .v { font-family: var(--serif); font-weight: 700; font-size: 21px; margin: 4px 0 4px; line-height: 1.25; }
+  .kpi .d { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  /* ---------- 待确认清单 ---------- */
+
+  .openhead {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 0 6px;
+  }
+
+  .badge-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 27px;
+    height: 27px;
+    padding: 0 8px;
+    border-radius: 14px;
+    background: var(--seal);
+    color: var(--paper);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .openlist {
+    list-style: none;
+    padding: 0;
+    margin: 18px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    max-width: none;
+  }
+
+  .openlist > li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--muted);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px 15px;
+    margin: 0;
+  }
+
+  .openlist.blocking > li { border-left-color: var(--seal); }
+
+  .openlist > li > b {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .openlist > li p {
+    font-size: 14px;
+    margin: 0 0 7px;
+    max-width: var(--measure);
+    line-height: 1.7;
+  }
+
+  .openlist > li p.why { color: var(--muted); font-size: 13.5px; }
+  .openlist > li p:last-of-type { margin-bottom: 9px; }
+
+  .openlist .ref {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    color: var(--accent);
+  }
+
+  .openlist.prep > li { border-left-color: var(--accent); }
+
+  .cleared {
+    border: 1px dashed var(--accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    color: var(--accent-ink);
+    font-size: 14px;
+    margin: 20px 0 0;
+  }
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding-top: 26px;
+    font-size: 13px;
+    color: var(--muted);
+    max-width: var(--measure);
+  }
+
+  @media (max-width: 980px) {
+    body { padding-inline: 18px; }
+    .doc { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+    nav.toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; background: var(--surface); }
+    .masthead { padding-block: 44px 30px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">产品需求文档 · v0.7 · 待评审</p>
+    <h1>有信</h1>
+    <p class="latin">TIDINGS</p>
+    <p class="tagline">不必天天来。合适的人出现时，我们会给你写信。</p>
+    <dl class="metagrid">
+      <div><dt>英文名</dt><dd>Tidings</dd></div>
+      <div><dt>产品形态</dt><dd>Web 端恋爱交友产品</dd></div>
+      <div><dt>核心差异</dt><dd>主动引荐，非划卡信息流</dd></div>
+      <div><dt>触达渠道</dt><dd>Web Push 优先，邮件兜底</dd></div>
+      <div><dt>准入方式</dt><dd>开放注册 + 入池审核</dd></div>
+      <div><dt>首站城市</dt><dd>上海</dd></div>
+      <div><dt>待确认</dt><dd><span class="badge-count" data-open-count>11</span> 项 · 见第 14 节</dd></div>
+      <div><dt>日期</dt><dd>2026-09-24</dd></div>
+      <div><dt>借鉴来源</dt><dd>本地仓库 <code>stubborn-love</code></dd></div>
+    </dl>
+  </header>
+
+  <div class="doc">
+
+    <nav class="toc" aria-label="目录">
+      <h2>目录</h2>
+      <ol>
+        <li><a href="#s1"><span class="n">1</span><span>产品定位</span></a></li>
+        <li><a href="#s2"><span class="n">2</span><span>核心机制：成对引荐</span></a></li>
+        <li><a href="#s3"><span class="n">3</span><span>引荐的生命周期</span></a></li>
+        <li><a href="#s4"><span class="n">4</span><span>用户旅程</span></a></li>
+        <li><a href="#s5"><span class="n">5</span><span>信息填写设计</span></a></li>
+        <li><a href="#s6"><span class="n">6</span><span>偏好设置</span></a></li>
+        <li><a href="#s7"><span class="n">7</span><span>AI 推荐</span></a></li>
+        <li><a href="#s8"><span class="n">8</span><span>通知设计</span></a></li>
+        <li><a href="#s9"><span class="n">9</span><span>匹配与沟通</span></a></li>
+        <li><a href="#s10"><span class="n">10</span><span>安全与风控</span></a></li>
+        <li><a href="#s11"><span class="n">11</span><span>关键指标</span></a></li>
+        <li><a href="#s12"><span class="n">12</span><span>版本规划</span></a></li>
+        <li><a href="#s13"><span class="n">13</span><span>已确认决策</span></a></li>
+        <li><a href="#s14"><span class="n">14</span><span>待确认</span></a></li>
+        <li><a href="#sa"><span class="n">A</span><span>附录：继承的设计资产</span></a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ============ 1 ============ -->
+      <section id="s1">
+        <h2 class="sec"><span class="num">01</span>产品定位</h2>
+
+        <p>「有信」是一个认真婚恋的 Web 产品。它不做无限下滑的卡片流，也不要求你每天来签个到。用户把资料填清楚、把偏好说明白，之后就可以离开。系统在后台持续找人，找到真正合适的组合时，给对方和你同时递出一封<em>引荐</em>，用浏览器推送通知你回来看看。</p>
+
+        <p>用户与产品的接触点从「每天刷十分钟」变成「每周收到一两次通知」。这是产品全部设计的前提。</p>
+
+        <h3><span class="num">1.1</span>目标用户</h3>
+        <ul>
+          <li>28–40 岁，首站上海，有明确结婚意愿</li>
+          <li>对划卡产品疲倦：刷了很久，匹配不少，没有一段成</li>
+          <li>不反感为找对象花时间填资料，但反感把时间花在无意义的浏览上</li>
+          <li>愿意把自己的真实条件、真实诉求写清楚的人</li>
+        </ul>
+
+        <h3><span class="num">1.2</span>与划卡产品的根本差异</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>维度</th><th>划卡产品</th><th>有信</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>用户投入</td><td>每天主动刷，越刷越累</td><td>填一次资料，之后被动接收</td></tr>
+              <tr><td>发现方式</td><td>用户自己在池子里捞</td><td>系统主动递到面前</td></tr>
+              <tr><td>曝光逻辑</td><td>人人可见，靠活跃度抢曝光</td><td>只在双方都够格时才互相可见</td></tr>
+              <tr><td>匹配率</td><td>低（单方右划即产生「喜欢」，互相喜欢才成）</td><td>高（每次引荐本身就是双向高分）</td></tr>
+              <tr><td>拒绝的代价</td><td>无感，划掉即忘</td><td>有分量，因为数量稀少</td></tr>
+              <tr><td>资料的作用</td><td>门面，够看就行</td><td>推荐算法的输入，越厚越准</td></tr>
+              <tr><td>核心指标</td><td>日活、停留时长、滑动数</td><td>有效匹配数、见面转化</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">1.3</span>明确不做的事</h3>
+        <ul>
+          <li><strong>不做无限浏览。</strong>不提供「查看更多」入口去翻池子。用户能看到的人，永远是系统主动引荐的人。</li>
+          <li><strong>不做颜值竞技场。</strong>引荐卡不显示「被多少人喜欢」，不设人气榜，不让用户比较自己和他人的受欢迎程度。</li>
+          <li><strong>不做焦虑营销。</strong>不推「你的匹配率正在下降」「再不来就被别人挑走了」这类通知，也不做「已有 N 人看过你」这类攀比提示。<strong>唯一开口子的是引荐终结时的事实告知</strong>（错过提醒与等待收尾，见 3.2）—— 它说的是一个具体的人、一件已经结束的事，不是笼统地给用户施加「再不行动就亏了」的压力。<span class="pill hard">已确认</span></li>
+          <li><strong>不做站外引流。</strong>产品内不提供联系方式交换的便捷路径，防止杀猪盘在早期把用户导流到微信。</li>
+        </ul>
+      </section>
+
+      <!-- ============ 2 ============ -->
+      <section id="s2">
+        <h2 class="sec"><span class="num">02</span>核心机制：成对引荐</h2>
+
+        <p>这是整个产品最关键的机制，也是与划卡产品真正分道扬镳的地方。</p>
+
+        <h3><span class="num">2.1</span>什么是一次引荐</h3>
+
+        <p>系统在池子里发现一对高分组合（A 与 B）时，<strong>同时</strong>把 A 递进 B 的引荐列表，把 B 递进 A 的引荐列表，然后<strong>同时</strong>通知双方。就像传统说媒：红娘先问过两边，觉得合适，才把双方约到一起。</p>
+
+        <p>用户打开网页，看到的是一封引荐：对方的照片、资料，以及一段「为什么是你们俩」的推荐理由。用户只需要做一个决定 —— 想认识，还是不合适。没有第二张卡可以划，没有下一个。</p>
+
+        <h3><span class="num">2.2</span>为什么必须成对</h3>
+
+        <p>如果引荐是单向的（只有你收到），你会遇到两个问题：一是你表达了兴趣，对方可能在几天后才碰巧刷到你，也可能永远刷不到，你在无谓地等待；二是你收到的引荐里，大量是「对方根本看不上你」的组合，你的每一次回应都在做无用功。</p>
+
+        <p>成对引荐把这两个问题一次解决：每一次递出，双方都是被系统判定为「互相适配」的。用户的每一次认真回应，都有一半的概率直接变成一段对话。</p>
+
+        <div class="callout warn">
+          <span class="label">代价</span>
+          <h4>成对引荐会显著压低推送量</h4>
+          <p>要求双方同时高分，意味着可推的组合数远少于单向推荐。池子小的时候，可能一周都推不出一个人。这是这个机制必须付的代价，也是它必须配套「池子规模」和「降级策略」的原因（见 2.4）。<strong>不能用「凑数推送」来缓解</strong> —— 一旦开始凑数，产品就退化成了划卡。</p>
+        </div>
+
+        <h3><span class="num">2.3</span>引荐的产生条件</h3>
+
+        <p>一条引荐进入用户的列表，必须同时满足：</p>
+
+        <ol>
+          <li><strong>双方都在池中</strong> —— 均已通过审核、资料完整度达标、均未处于暂停状态</li>
+          <li><strong>双方互为异性</strong>、年龄在各自的硬条件区间内、地域硬条件相容</li>
+          <li><strong>双向匹配分超过阈值</strong> —— A 对 B 的分数与 B 对 A 的分数，都要过线</li>
+          <li><strong>双方都没有「一票否决」冲突</strong> —— 婚育意愿、是否接受婚史等重大事项不能互相排斥</li>
+          <li><strong>双方都还没划掉过对方</strong>，且未互相拉黑</li>
+          <li><strong>当下的推送配额还有余量</strong>（见 2.5）</li>
+        </ol>
+
+        <h3><span class="num">2.4</span>池子不足时的降级</h3>
+
+        <p>成对引荐在池子稀疏时会失效 —— 不是推得少，是一条都推不出。需要一条明确的降级路径，且必须让用户知情。</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>池子状态</th><th>策略</th><th>用户体验</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">≥ 2000 可用</td>
+                <td>严格成对，双向均须过线</td>
+                <td>正常，每周约 1–3 次推送</td>
+              </tr>
+              <tr>
+                <td class="num">500 – 2000</td>
+                <td>成对，阈值下调 10%</td>
+                <td>正常，频次略降</td>
+              </tr>
+              <tr>
+                <td class="num">100 – 500</td>
+                <td>成对为主；成不了对时允许单向引荐 —— 对方分数过线即可递出，对方不收到通知。<strong>不设保底频次</strong> <span class="pill hard">已确认</span></td>
+                <td>仍能收到引荐，但对方未必同步看到你。若对方之后看到你并表达兴趣，才成匹配</td>
+              </tr>
+              <tr>
+                <td class="num">&lt; 100</td>
+                <td>暂停自动引荐，转为运营人工撮合 + 向用户明示池子正在建设中</td>
+                <td>页面上直接说明「你所在城市当前可引荐的人不足，我们在扩充」。绝不推不合标准的人填坑</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><strong>成对是目标态，单向只是冷启动期的过渡。</strong>池子小的时候不强求成对 —— 强求的结果是一条都推不出，用户等到流失。但池子一旦越过成对阈值，系统必须回到严格成对，不再递出单向引荐。这条线由池子规模决定，不由运营判断决定。<span class="pill hard">已确认</span></p>
+
+        <p><strong>单向引荐的等待规则。</strong>先表态的一方进入等待，上限 30 天。对方在等待期内收到你的引荐（无论成对还是单向）并表达兴趣，即刻成立匹配；超过 30 天未成，本次引荐释放归档。等待期间不向用户提示「有人在等你」—— 这类提示制造压力，而用户对此无能为力。单向引荐的对方不产生错过提醒，因为他从头到尾没收到过任何东西（见 3.2）。</p>
+
+        <p>降级必须对用户可见。用户看不到池子，如果偏好过窄导致长期收不到引荐，他会认为产品是坏的 —— 这是被动产品最大的体验陷阱（见 6.3）。</p>
+
+        <h3><span class="num">2.5</span>频次控制</h3>
+
+        <p>推送频率由<strong>结果</strong>决定，不由日历决定。<strong>不设上限，也不设保底</strong> —— 一周推几次，取决于这一周真的出现了几个够格的组合；也可能整月一次都没有。</p>
+
+        <ul>
+          <li><strong>单次上限</strong>：一次推送携带 1–3 个人，不更多。列表太长就又变成刷了</li>
+          <li><strong>不设次数上限</strong>：早期不对推送次数设业务上限。<span class="pill hard">已确认</span> 用户仍可自己设「最多多久打扰我一次」，默认不限 —— 系统不限制用户，但用户有权限制系统。次数上限留到商业化阶段作为付费权益引入（见 12）</li>
+          <li><strong>静默时段</strong>：22:00 – 09:00 不推送，除非用户自行调整</li>
+          <li><strong>未响应冻结</strong>：用户连续 2 次收到推送都未打开，暂停推送，转为站内提示，直到用户主动访问一次</li>
+          <li><strong>严格程度影响频次</strong>：用户的严格程度设置（见 6.5）会改变够格的人数，因而间接影响推送频次。档位越严推送越少，这是预期内的结果，不做补偿性推送</li>
+        </ul>
+
+        <p>不设上限不等于放任。真正防打扰的是另外三道闸：单次不超过 3 个人、夜间静默、连续不打开就自动冻结。<strong>频次低应该是「因为没有合适的人」的结果，而不是被配额制度压出来的。</strong>如果哪天需要靠上限来防止用户被淹没，说明匹配阈值出了问题 —— 该改的是阈值，不是加配额。</p>
+      </section>
+
+      <!-- ============ 3 ============ -->
+      <section id="s3">
+        <h2 class="sec"><span class="num">03</span>引荐的生命周期</h2>
+
+        <p>一条引荐从生成到消亡，有明确的状态与时限。核心原则：<strong>不让任何一方无限期等待</strong>。</p>
+
+        <ol class="flow">
+          <li><b>生成</b><span>系统判定为成对高分组合，写入引荐</span></li>
+          <li><b>递出</b><span>推送通知双方，进入待查看</span></li>
+          <li><b>查看</b><span>用户打开引荐页，看到完整资料与推荐理由</span></li>
+          <li><b>回应</b><span>选择「想认识」或「不合适」</span></li>
+          <li><b>结算</b><span>双方都「想认识」→ 匹配；任一不合适 → 本次不成立</span></li>
+          <li><b>归档</b><span>未在时限内回应的，过期释放</span></li>
+        </ol>
+
+        <h3><span class="num">3.1</span>状态与时限</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>状态</th><th>触发</th><th>时限</th><th>超时后</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">pending</td><td>引荐生成并已推送</td><td>72 小时未查看</td><td>进入 <code>expired</code>，双方资料各自回到池中，可再次被匹配给别人</td></tr>
+              <tr><td class="mono">viewed</td><td>用户打开了引荐页</td><td>7 天未回应</td><td>进入 <code>expired</code></td></tr>
+              <tr><td class="mono">responded</td><td>用户已表态，等待对方</td><td>7 天对方未回应</td><td>进入 <code>expired</code></td></tr>
+              <tr><td class="mono">matched</td><td>双方都选择「想认识」</td><td>—</td><td>转为匹配，进入会话</td></tr>
+              <tr><td class="mono">declined</td><td>任一方选择「不合适」</td><td>—</td><td>终结。等待方<strong>立即</strong>收到一条中性收尾通知；表达了「不合适」的一方不发</td></tr>
+              <tr><td class="mono">expired</td><td>超时未回应</td><td>存档 90 天</td><td>释放回池，并<strong>触发收尾通知</strong>（见 3.2）。存档可用于模型训练，但不再重新递出同一条</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">3.2</span>过期与重新匹配</h3>
+
+        <p>用户没来，引荐不会无限堆积。过期后两个人各自回到池子，可以再次被匹配给其他人。用户回到网站时，看到的是<strong>当前仍然有效</strong>的引荐，而不是一屏早已失效的历史记录。</p>
+
+        <p><strong>但每一条引荐都要有结尾。</strong>引荐终结时，等待的一方收到收尾通知，超时未回应的一方收到错过提醒。<span class="pill hard">已确认</span></p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>终结方式</th><th>谁收到</th><th>文案</th><th>时机</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>超时释放 <code>expired</code></td>
+                <td>超时未回应的一方</td>
+                <td>「你错过了 1 位合适的人」。<strong>只报这一次，不做累计</strong>，不写「你已错过 N 位」</td>
+                <td>到期即刻</td>
+              </tr>
+              <tr>
+                <td>超时释放 <code>expired</code></td>
+                <td>已表态「想认识」的一方</td>
+                <td>「上封信没有等到回音。这位已经回到池子里了，遇到合适的再给你写信」</td>
+                <td>到期即刻</td>
+              </tr>
+              <tr>
+                <td>被明确拒绝 <code>declined</code></td>
+                <td>已表态「想认识」的一方</td>
+                <td>与上一行<strong>完全相同</strong>的措辞，不区分原因</td>
+                <td><strong>立即</strong></td>
+              </tr>
+              <tr>
+                <td>被明确拒绝 <code>declined</code></td>
+                <td>表达了「不合适」的一方</td>
+                <td>不发。他做了一个决定，不需要被通知</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>两处边界。<strong>其一，单向引荐不产生错过提醒。</strong>单向引荐里对方从头到尾没收到过任何东西，也就无所谓错过（见 2.4）。<strong>其二，这两类通知不受「未响应冻结」限制</strong> —— 它们是一条引荐的收尾，不是新的引荐招揽，恰恰是发给那些不常来的人的。但每条引荐各只发一次，绝不叠加。</p>
+
+        <div class="callout warn">
+          <span class="label">已知代价</span>
+          <h4>立即发收尾通知，等于让对方能推断出自己被拒绝了</h4>
+          <p>两种终结刻意用同一套措辞，本来是为了不泄漏原因。但<strong>时机泄漏了它</strong>：等待方刚按下「想认识」几秒钟就收到收尾，那只可能是对方当场拒绝了他。这是选择「立即发」必然要付的代价，不是实现缺陷，文档如实记下。</p>
+          <p>不想付这个代价的话，唯一的干净解法是把拒绝也延到时限到期才通知 —— 措辞和时机就都不泄漏了，代价是等待方多等几天。这一条等 V1 真实数据出来再判断值不值（见第 14 节）。</p>
+        </div>
+      </section>
+
+      <!-- ============ 4 ============ -->
+      <section id="s4">
+        <h2 class="sec"><span class="num">04</span>用户旅程</h2>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>阶段</th><th>用户做什么</th><th>产品做什么</th><th>关键指标</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>进站</strong></td>
+                <td>看到一句话介绍，决定要不要花两分钟</td>
+                <td>首屏不要求注册，先讲清楚「这里和划卡不一样」</td>
+                <td>首屏到开始建档的转化</td>
+              </tr>
+              <tr>
+                <td><strong>入池建档</strong></td>
+                <td>邮箱 + 密码登录，填 6 项必填，传头像</td>
+                <td>分步、可中断、进度可见，目标 2 分钟内完成</td>
+                <td>建档完成率</td>
+              </tr>
+              <tr>
+                <td><strong>补充深度档案</strong></td>
+                <td>在引导下逐步补全关系目标、生活方式、问答</td>
+                <td>告诉用户「补得越多，遇到的人越准」，而不是「完善资料领积分」</td>
+                <td>深度档案平均完成度</td>
+              </tr>
+              <tr>
+                <td><strong>设定偏好</strong></td>
+                <td>填硬条件，软偏好保持默认</td>
+                <td>实时显示「符合你硬条件的有 N 人」，过窄时警告</td>
+                <td>偏好页停留时长、候选池人数分布</td>
+              </tr>
+              <tr>
+                <td><strong>开启通知</strong></td>
+                <td>授权浏览器推送</td>
+                <td>在建档完成、说明清楚之后才请求授权</td>
+                <td>推送授权率</td>
+              </tr>
+              <tr>
+                <td><strong>离开</strong></td>
+                <td>关掉网页，去过自己的生活</td>
+                <td>在池中持续参与匹配</td>
+                <td>——</td>
+              </tr>
+              <tr>
+                <td><strong>收到引荐</strong></td>
+                <td>看到通知，决定现在回来看还是晚点</td>
+                <td>只在真的有好组合时才打扰</td>
+                <td>推送打开率</td>
+              </tr>
+              <tr>
+                <td><strong>回应</strong></td>
+                <td>看资料和推荐理由，选择想认识或不合适</td>
+                <td>给出「为什么是你们俩」的理由</td>
+                <td>引荐响应率、响应时长</td>
+              </tr>
+              <tr>
+                <td><strong>匹配</strong></td>
+                <td>双方都选了想认识，进入会话</td>
+                <td>推送匹配通知，给三个基于双方档案的破冰话题</td>
+                <td>匹配后 24h 内开口率</td>
+              </tr>
+              <tr>
+                <td><strong>进展或退出</strong></td>
+                <td>聊下去、见面，或某一方淡出</td>
+                <td>支持随时暂停接收引荐，不必注销</td>
+                <td>7 日对话留存</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ 5 ============ -->
+      <section id="s5">
+        <h2 class="sec"><span class="num">05</span>信息填写设计</h2>
+
+        <p>这是本产品投入最重的一块。在划卡产品里，资料是门面；在这里，资料是推荐算法的全部输入 —— 用户不来，系统只能靠资料理解他。资料填得敷衍，推荐就不可能准。</p>
+
+        <p>本节大量沿用了本地仓库 <code>stubborn-love</code> 已验证的设计（控件体系、校验规则、完整度算法、以及若干踩过的坑），并标注了本产品必须改动的地方。</p>
+
+        <h3><span class="num">5.1</span>三条设计原则</h3>
+
+        <div class="callout">
+          <span class="label">原则一</span>
+          <h4>入池要快，变准要慢</h4>
+          <p>划卡产品可以要求用户一次填完 4 步 11 项，因为填完马上有卡可划，反馈即时。本产品填完之后是一片安静 —— 用户可能几天后才收到第一封信。所以<strong>入池门槛必须压到 2 分钟以内</strong>，深度的部分放到入池之后，用「补得越多，遇到的人越准」的即时反馈来驱动，而不是靠一次性表单。</p>
+        </div>
+
+        <div class="callout">
+          <span class="label">原则二</span>
+          <h4>每一项都要能回答「这影响什么」</h4>
+          <p>不展示的字段（体重等），沿用 <code>stubborn-love</code> 的做法：明确标注「不对外展示，仅用于匹配」。但本产品要更进一步 —— 每个模块的标题下直接说明它对推荐的作用，例如「关系目标：这一项决定我们会不会把明显目标不同的人推给你」。用户不理解为什么填，就会填假的。</p>
+        </div>
+
+        <div class="callout">
+          <span class="label">原则三</span>
+          <h4>部分字段不展示，但全部参与匹配</h4>
+          <p>体重、精确生日、家乡这些字段，不对任何人可见，只作为匹配与打分的输入。用户能随时在设置里看到「哪些字段别人看得到」的完整清单。</p>
+          <p><strong>年收入不在其中，它对外展示。</strong>收入是严肃婚恋里用户真正会拿去判断的一项，藏起来不会让它消失，只会让人绕到站外去打听。代价也要认：自填收入无法核验，看不见就会去猜，看得见就会有人填高。应对方式见 5.4 B 与第 14 节。</p>
+        </div>
+
+        <h3><span class="num">5.2</span>两段式结构</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>阶段</th><th>时机</th><th>字段量</th><th>是否阻断</th><th>目标</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>入池档案</strong></td>
+                <td>注册后立即</td>
+                <td>6 项必填 + 头像</td>
+                <td>不填完不进池，但可以中断，下次回来接着填</td>
+                <td>2 分钟内完成率 &gt; 70%</td>
+              </tr>
+              <tr>
+                <td><strong>深度档案</strong></td>
+                <td>入池之后，持续引导</td>
+                <td>约 30 项，分 4 个模块</td>
+                <td>不阻断。但完成度直接决定推荐质量与是否够格被引荐</td>
+                <td>7 日内完成度 &gt; 60%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>入池档案（6 项）</h4>
+        <p>昵称、性别、出生年月、所在城市、婚史、头像。这 6 项是「能不能开始匹配」的最低要求 —— 少任何一项，系统都无法判断该把谁递给他。</p>
+
+        <h4>深度档案（4 个模块）</h4>
+        <p>基本盘 → 关系目标 → 生活方式 → 价值观与自述。模块之间有先后，但可以任意顺序填写，填完一个模块立刻在页面上给出反馈（例如「已可以为你在同城里找到更合适的人」）。</p>
+
+        <h3><span class="num">5.3</span>控件体系（沿用 stubborn-love）</h3>
+
+        <p>这套控件已在 <code>stubborn-love</code> 中实现并验证，建议直接沿用，不重新设计：</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>控件</th><th>用途</th><th>设计要点</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">OptionsSheet</td><td>学历、收入、关系目标等单选枚举</td><td>底部弹层，未选时显示「不限」占位</td></tr>
+              <tr><td class="mono">RangeSheet</td><td>年龄区间、身高区间</td><td>双滚轮，两端都不填即「不限」</td></tr>
+              <tr><td class="mono">SheetPicker / WheelPicker</td><td>身高、体重等大范围数值</td><td>滚轮，初值落在中位数（身高 170、体重 60），避免用户被迫从最小值滚起</td></tr>
+              <tr><td class="mono">MBTISheet</td><td>MBTI</td><td>四个维度各二选一拼出四字母，不平铺 16 项 —— 后者认知负担过高</td></tr>
+              <tr><td class="mono">TagInput</td><td>兴趣爱好</td><td>回车或中英文逗号添加，重复项忽略，满额提示「已满 N 个」</td></tr>
+              <tr><td class="mono">省市两级弹层</td><td>所在城市、家乡</td><td>先省后市，存国标 6 位行政区划码</td></tr>
+              <tr><td class="mono">院校联想输入</td><td>毕业院校</td><td>输入 200ms 后联想，必须从下拉中选择；院校层级由服务端归一，前端无法自封</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>院校层级由服务端归一这一点值得单独强调：<code>stubborn-love</code> 的注释写得很直白 —— 如果接受前端传层级，「否则人人可以把自己填成 QS 前 100」。所有会影响匹配的派生字段，都必须由服务端根据原始输入计算，前端只负责采集原始值。</p>
+
+        <h3><span class="num">5.4</span>字段字典</h3>
+
+        <p><span class="pill inherit">沿用</span> 表示直接沿用 <code>stubborn-love</code> 的字段定义与校验；<span class="pill new">新增</span> 表示本产品需要新增，多为 AI 推荐所需的语义化字段。</p>
+
+        <h4>A · 入池档案（6 项，全部必填）</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>字段</th><th>类型</th><th>取值与校验</th><th>控件</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="pill inherit">沿用</span> 昵称<br><code>nickname</code></td>
+                <td>文本</td>
+                <td>2–12 字。trim 后按字符数校验。<strong>全站唯一拦截联系方式的文本位</strong>：出现 8 位以上连续数字，或含「微信 / vx / wx / qq / weixin / telegram」即拒绝</td>
+                <td>单行输入，限长 12</td>
+              </tr>
+              <tr>
+                <td><span class="pill inherit">沿用</span> 性别<br><code>gender</code></td>
+                <td>枚举</td>
+                <td><code>M</code> / <code>F</code>。注册后不可自行修改。<strong>本产品需补一个一次性重置入口</strong>（见坑位清单）</td>
+                <td>两枚大按钮，仅建档页出现</td>
+              </tr>
+              <tr>
+                <td><span class="pill inherit">沿用</span> 出生年月<br><code>birth_ym</code></td>
+                <td>整数</td>
+                <td>格式 <code>YYYYMM</code>。周岁须 ≥18 且 ≤60；月 1–12，年 ≥1900。对外只展示年龄，不展示精确生日</td>
+                <td>年 + 月两个下拉，年份范围按当前日期推算</td>
+              </tr>
+              <tr>
+                <td><span class="pill inherit">沿用</span> 所在城市<br><code>city_code</code></td>
+                <td>整数</td>
+                <td>国标 6 位行政区划码，取值范围校验</td>
+                <td>省市两级底部弹层</td>
+              </tr>
+              <tr>
+                <td><span class="pill new">新增</span> 婚史<br><code>marital_status</code></td>
+                <td>枚举</td>
+                <td>未婚 / 离异无子女 / 离异有子女。严肃婚恋里这是最硬的一票否决项之一，必须进门槛而不是藏在选填里</td>
+                <td>OptionsSheet</td>
+              </tr>
+              <tr>
+                <td><span class="pill inherit">沿用</span> 头像<br><code>avatar_key</code></td>
+                <td>图片</td>
+                <td>≤8MB，jpg / png / webp。前端 canvas 裁 1:1 输出 600×600</td>
+                <td>圆形预览 + 相册选择</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>B · 基本盘（并入池后的第一批引导）</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>字段</th><th>类型</th><th>取值与校验</th><th>展示</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill inherit">沿用</span> 家乡<br><code>hometown_code</code></td><td>整数</td><td>国标 6 位码</td><td>可见</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 身高<br><code>height_cm</code></td><td>整数</td><td>140–210</td><td>可见</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 体重<br><code>weight_kg</code></td><td>整数</td><td>35–150。<strong>不对外展示，仅用于匹配</strong></td><td>隐藏</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 学历<br><code>education_level</code></td><td>枚举 1–4</td><td>大专及以下 / 本科 / 硕士 / 博士</td><td>可见</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 毕业院校<br><code>school_name</code></td><td>文本 ≤40</td><td>必须从院校联想下拉中选择；层级由服务端归一</td><td>可见</td></tr>
+              <tr><td class="mono">院校层级<br>school_tier</td><td>整数 1–5</td><td>只读派生：其他 / 普通本科 / 双一流 / 985 / QS 前 100。无命中落「普通本科」</td><td>可见（弱化展示）</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 职业<br><code>occupation</code></td><td>文本 ≤40</td><td>敏感词过滤，不校验真实性</td><td>可见</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 工作单位<br><code>company</code></td><td>文本 ≤40</td><td>敏感词过滤，不校验真实性</td><td>可见</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 年收入<br><code>income_band</code></td><td>枚举 1–6</td><td>10 万以下 / 10–20 / 20–35 / 35–50 / 50–100 / 100 万以上。<strong>对外展示，且只出区间、不出具体数字</strong>，同时参与匹配打分。展示策略与 <code>stubborn-love</code> 相反（那边刻意不展示）</td><td>可见</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>C · 关系目标（本产品新增，严肃婚恋的硬需求）</h4>
+        <p>这一组字段在 <code>stubborn-love</code> 里是空白。它们是「一票否决」性质的，AI 推荐必须最先过滤掉明显目标不同的人，否则后面的相似度算得再准也没有意义。</p>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>字段</th><th>取值</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill new">新增</span> 关系目标<br><code>relation_goal</code></td><td>认真恋爱 / 以结婚为前提 / 计划一年内结婚</td><td>与用户的硬条件联立，目标差两级以上不互推</td></tr>
+              <tr><td><span class="pill new">新增</span> 期望节奏<br><code>pace</code></td><td>顺其自然 / 半年内确定 / 一年内确定</td><td>比关系目标更细，用于打分而非硬过滤</td></tr>
+              <tr><td><span class="pill new">新增</span> 异地接受度<br><code>long_distance_ok</code></td><td>不接受 / 接受同省 / 接受全国 / 可以为对方换城市</td><td>与对方的接受度联立判断，单方接受不算通过</td></tr>
+              <tr><td><span class="pill new">新增</span> 婚育意愿<br><code>fertility_view</code></td><td>想要孩子 / 不想要孩子 / 视情况</td><td>「想要」与「不想要」互为硬冲突，绝不互推</td></tr>
+              <tr><td><span class="pill new">新增</span> 是否接受对方有婚史<br><code>accept_divorced</code></td><td>不接受 / 接受无子女 / 接受有子女</td><td>与对方的 <code>marital_status</code> 联立</td></tr>
+              <tr><td><span class="pill new">新增</span> 婚后与父母同住<br><code>live_with_parents</code></td><td>不接受 / 可商量 / 希望同住</td><td>软冲突，参与打分</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>D · 生活方式</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>字段</th><th>取值</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill new">新增</span> 作息<br><code>chronotype</code></td><td>早睡早起 / 夜猫子 / 不规律</td><td>日常摩擦的主要来源之一</td></tr>
+              <tr><td><span class="pill new">新增</span> 吸烟 <code>smoking</code> / 饮酒 <code>drinking</code></td><td>不 / 偶尔 / 经常</td><td>可设为一票否决项（很多人不接受吸烟）</td></tr>
+              <tr><td><span class="pill new">新增</span> 运动频率<br><code>exercise_freq</code></td><td>几乎不 / 每周 1–2 次 / 每周 3 次以上</td><td>参与打分</td></tr>
+              <tr><td><span class="pill new">新增</span> 宠物<br><code>pets</code></td><td>无 / 有猫 / 有狗 / 其他</td><td>参与打分。「不接受养宠」也是常见硬条件</td></tr>
+              <tr><td><span class="pill new">新增</span> 饮食习惯<br><code>diet</code></td><td>无特殊要求 / 素食 / 清真 / 其他</td><td>参与打分。「清真」「素食」在饮食上天然互斥，但只作打分，不强过滤</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>E · 价值观与自述</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>字段</th><th>取值与限制</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="pill inherit">沿用</span> MBTI<br><code>mbti</code></td><td>16 型；<code>UNKNOWN</code> 视为未填。四维二选一拼装</td><td>参与打分，但权重不宜高 —— 它的预测力被普遍高估</td></tr>
+              <tr><td><span class="pill new">新增</span> 三观问答<br><code>qa_pairs</code></td><td>从题库选 3 题作答，每题 ≤150 字；每题可标记「这条对我很重要」</td><td><strong>本产品最重要的新增</strong>。替代划卡产品里无意义的长篇自我介绍，产出结构化、可比较的语义单元，是 AI 推荐的主要输入</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 兴趣爱好<br><code>hobbies</code></td><td>≤6 个，单个 ≤20 字，敏感词过滤</td><td>沿用自由标签 + <strong>新增预设标签库</strong>，否则推荐无法利用（见 5.6）</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 自我介绍<br><code>intro</code></td><td>≤300 字，敏感词过滤</td><td>自由文本，AI 从中提取性格与生活状态</td></tr>
+              <tr><td><span class="pill inherit">沿用</span> 对另一半的期待<br><code>expectation</code></td><td>≤300 字，敏感词过滤</td><td>自由文本，但<strong>不作为硬过滤依据</strong> —— 用户写的期待常常互相矛盾，只作参考信号</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>F · 相册</h4>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>项</th><th>规则</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>最少张数</td><td><span class="pill new">新增</span> 入池需 <strong>≥3 张</strong>。<code>stubborn-love</code> 不强制相册（只要求头像），但本产品的用户在引荐页上只看一次，照片信息量不足会直接压低响应率</td></tr>
+              <tr><td>最多张数</td><td>9 张，含头像</td></tr>
+              <tr><td>排序</td><td>支持拖拽排序，位置 0–8</td></tr>
+              <tr><td>审核</td><td><strong>与 <code>stubborn-love</code> 相反</strong>：照片须先过审才进池（见 5.6）</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">5.5</span>完整度与入池门槛</h3>
+
+        <p><code>stubborn-love</code> 的完整度算法是「必填占 60 分 + 选填占 40 分」，且完整度<strong>直接作为 feed 打分因子（权重 0.25）</strong>。本产品要改两处：</p>
+
+        <ul>
+          <li><strong>完整度不再参与匹配打分。</strong>在划卡产品里它作为排序因子能激励补全，有正面作用。但在引荐产品里，把完整度算进匹配分会导致「资料填得全的人被反复推给所有人」，而不是「最合适的人被推给你」。完整度应该是<em>门槛</em>，不是<em>分数</em>。</li>
+          <li><strong>拆成两个门槛，且刻意不对称。</strong>入池门槛（6 项必填 + 头像 + ≥3 张照片）决定能不能被匹配；引荐门槛（深度档案完成度 ≥ 60%）决定能不能被别人看到。<strong>只入池、不补深度档案的用户，能收引荐、不会被引荐</strong> —— 这个不对称是有意的，也是驱动补全的杠杆。<span class="pill hard">已确认</span></li>
+        </ul>
+
+        <div class="callout">
+          <span class="label">界面呈现</span>
+          <p>用户主页顶部常驻一条进度提示：<strong>「你的档案已完整 45%。补全后才会被引荐给别人。」</strong> 明确指出缺哪几项、每项会影响什么，而不是笼统地催「完善资料」。</p>
+        </div>
+
+        <h3><span class="num">5.6</span>与 stubborn-love 的差异</h3>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>项</th><th>stubborn-love</th><th>本产品</th><th>为什么改</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>建档结构</td>
+                <td>一次性 4 步，11 项必填，不填完不 active</td>
+                <td>两段式：6 项入池 + 30 项渐进补全</td>
+                <td>本产品填完之后没有立即回报（要等引荐），长表单会劝退</td>
+              </tr>
+              <tr>
+                <td>性别修改</td>
+                <td>注册后不可改，无兜底</td>
+                <td>不可改，但提供一次人工重置入口</td>
+                <td>填错就无法自助纠正，只能注销重注册 —— 这是原设计明确留下的坑</td>
+              </tr>
+              <tr>
+                <td>照片审核</td>
+                <td>上传即生效，事后人工巡检</td>
+                <td>⚠ 入池前必须过审</td>
+                <td>开放注册下，未审照片会直接进入他人的引荐通知。事后巡检的曝光窗口在划卡产品里可以接受，在「主动推送到你面前」的场景里不可接受</td>
+              </tr>
+              <tr>
+                <td>资料审核</td>
+                <td>文本签名比对 + 快照回退，改文本才触发</td>
+                <td>沿用，逻辑不变</td>
+                <td>这套机制解决「改个身高就被下架」的问题，设计干净，直接复用</td>
+              </tr>
+              <tr>
+                <td>完整度</td>
+                <td>参与打分，权重 0.25</td>
+                <td>不参与打分，只做门槛</td>
+                <td>见 5.5</td>
+              </tr>
+              <tr>
+                <td>兴趣标签</td>
+                <td>纯自由输入，无预设标签库</td>
+                <td>预设标签库 + 自由补充</td>
+                <td>自由标签「爬山」「登山」「徒步」无法互相匹配，AI 用不上</td>
+              </tr>
+              <tr>
+                <td>文本语义字段</td>
+                <td>自我介绍 300 字 + 期待 300 字</td>
+                <td>再增 3 条结构化问答</td>
+                <td>长文里有效信号稀疏；结构化题目产出的是可比较的语义单元</td>
+              </tr>
+              <tr>
+                <td>向导续填</td>
+                <td>数据层支持、交互层不支持，重进从第 1 步开始</td>
+                <td>必须支持断点续填</td>
+                <td>原实现的已知缺陷，两段式结构下更不可接受</td>
+              </tr>
+              <tr>
+                <td>档位枚举口径</td>
+                <td>学历代码限 1–4，DB CHECK 却是 1–5，第 5 档不可达</td>
+                <td>枚举值与数据库约束保持单一真源</td>
+                <td>原仓库存在的实现漂移，新产品不应复制</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ 6 ============ -->
+      <section id="s6">
+        <h2 class="sec"><span class="num">06</span>偏好设置</h2>
+
+        <h3><span class="num">6.1</span>硬条件与软偏好，双层</h3>
+
+        <p><code>stubborn-love</code> 的 9 个偏好字段<strong>全部是硬过滤</strong>，任一项设窄就直接把池子切没，靠 6 级放宽梯子兜底。本产品要改成双层结构：</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>层</th><th>字段</th><th>行为</th><th>默认</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="pill hard">硬条件</span></td>
+                <td>年龄区间、地域、婚育意愿、是否接受有婚史、异地接受度</td>
+                <td>一票否决，不满足绝不互推</td>
+                <td>仅年龄必填，其余「不限」</td>
+              </tr>
+              <tr>
+                <td><span class="pill soft">软偏好</span></td>
+                <td>身高、学历、院校层级、收入、体型、吸烟饮酒、作息、兴趣重合、MBTI 相容</td>
+                <td>三档权重：很在意 / 一般 / 无所谓。只影响打分，不筛人</td>
+                <td>全部「一般」</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>「很在意」的软偏好会在打分中获得高权重，接近硬过滤的效果，但不会真的把人筛掉。<strong>用户对外的说法是「很在意」，不是「必须」</strong> —— 措辞上要刻意避免绝对化，否则用户会以为自己设了硬条件。</p>
+
+        <h3><span class="num">6.2</span>为什么本产品的偏好要更克制</h3>
+
+        <p>划卡产品里，用户设窄偏好只影响自己刷到什么，池子切没了顶多是没卡可划。本产品里，用户设窄偏好会导致<strong>彻底收不到推送，且不知道原因</strong>。所以：</p>
+
+        <ul>
+          <li>硬条件只保留真正的一票否决项，字段数量控制在 6 个以内</li>
+          <li>收入、院校层级、体型这类在划卡产品里常被当作硬条件的字段，降为软偏好 —— 它们更适合作为「偏好」而不是「门槛」</li>
+          <li>软偏好默认全部「一般」，不预设任何倾向</li>
+          <li>移除了 <code>stubborn-love</code> 的 6 级放宽梯子。本产品的做法不是「悄悄放宽」，而是<strong>提前告知池子会变小</strong>（见 6.3）</li>
+        </ul>
+
+        <h3><span class="num">6.3</span>候选池试算（必须有）</h3>
+
+        <div class="callout warn">
+          <span class="label">必做项</span>
+          <h4>偏好页实时显示「符合你硬条件的有 N 人」</h4>
+          <p><code>stubborn-love</code> 的 PRD 里写了这一条（要求显示候选人数并在少于 20 人时提示），但代码里<strong>并未实现</strong>。在本产品中它是不可省略的：用户看不到池子，一旦偏好过窄，表现就是「永远收不到通知」，而用户无从判断是产品坏了还是自己设太窄了。</p>
+          <p>具体行为：</p>
+          <ul>
+            <li>用户调整任意硬条件，人数实时刷新</li>
+            <li>人数 ≥ 100 时正常显示，不打扰</li>
+            <li>人数 &lt; 30 时显示警示，并指出「最容易放宽的一项」是什么、放宽后人数会变成多少</li>
+            <li>人数为 0 时不允许保存，或用明确的二次确认</li>
+          </ul>
+        </div>
+
+        <p>这个数字本身也是信任的来源。用户看到「符合条件的有 428 人」，就理解了产品为什么暂时还没给他写信 —— 不是没人，是系统还在挑。</p>
+
+        <h3><span class="num">6.4</span>偏好的反向使用</h3>
+
+        <p><code>stubborn-love</code> 有一个很聪明的做法：偏好不仅用于筛人，还被反向用作打分因子 —— 「我满足对方偏好条件的项数 ÷ 对方设的项数」，权重 0.30，是全系统最高的因子。逻辑是：推一个不可能右划我的人，等于浪费我一次配额。</p>
+
+        <p>本产品沿用这个思路，且它在新场景下更重要 —— 引荐是稀少的，一次错推的代价比一次错划高得多。</p>
+
+        <h3><span class="num">6.5</span>严格程度</h3>
+
+        <p>用户可以在三档之间自行调节推荐阈值。<span class="pill hard">已确认</span></p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>档位</th><th>行为</th><th>适合谁</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>稳妥</strong></td><td>阈值上浮，只推双方高度契合的组合</td><td>目标明确，不介意等</td></tr>
+              <tr><td><strong>均衡</strong>（默认）</td><td>标准阈值</td><td>大多数用户</td></tr>
+              <tr><td><strong>多看看</strong></td><td>阈值下调，接受一些超出既有偏好的组合</td><td>池子小，或希望拓宽视野</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>三条约束：</p>
+        <ul>
+          <li><strong>只调阈值，不破硬条件。</strong>硬条件是用户明确的一票否决，任何档位都不会突破。选择「多看看」不会让系统推一个不符合你年龄区间或婚育意愿的人</li>
+          <li><strong>代价必须即时可见。</strong>切换档位时，候选池试算（6.3）的人数立刻刷新。用户要能当场看到「稳妥」会让池子从 428 人变成 96 人</li>
+          <li><strong>系统不主动替用户改档。</strong>可以在用户长期收不到引荐时提示一次「要不要试试放宽一档」，但改不改由用户决定，也不反复提示</li>
+        </ul>
+
+        <p>把这个开关交给用户，是因为「我该被推给什么样的人」这件事，系统的判断不如用户自己准。产品能保证的是不推明显不合适的，至于剩余空间里要多保守，用户的意愿比算法更权威。</p>
+      </section>
+
+      <!-- ============ 7 ============ -->
+      <section id="s7">
+        <h2 class="sec"><span class="num">07</span>AI 推荐</h2>
+
+        <p>本节只描述产品行为与输入输出，不涉及技术选型。MVP 阶段可以不依赖大模型，用规则与加权打分即可跑通全流程（见 12）。</p>
+
+        <h3><span class="num">7.1</span>推荐的输入</h3>
+
+        <ul>
+          <li><strong>结构化字段</strong> —— 年龄、身高、学历、地域、生活方式、关系目标等，用于硬条件判断与加权打分</li>
+          <li><strong>语义化字段</strong> —— 三条问答、自我介绍、对另一半的期待，用于理解用户在结构化字段之外真正在意什么</li>
+          <li><strong>行为反馈</strong> —— 用户对历史引荐的回应（想认识 / 不合适），以及配对成功后的对话留存情况</li>
+        </ul>
+
+        <h3><span class="num">7.2</span>推荐理由</h3>
+
+        <div class="callout">
+          <span class="label">分阶段</span>
+          <h4>V1 不要求推荐理由，AI 上线后才成为必需项</h4>
+          <p>V1 走人工引荐，没有模型能生成可信的理由，硬凑一段只会写出「你们很合适」这类空话。这一阶段<strong>引荐卡不设理由位</strong>；运营若判断某一条有必要说明，可以手写一条，但不作为流程要求。<span class="pill hard">已确认</span></p>
+          <p>AI 推荐上线后，理由转为<strong>必需</strong>。没有理由的推送等于骚扰通知 —— 用户需要知道系统凭什么认为这两个人合适，他看到理由合理，才会相信下次的引荐也值得看。</p>
+        </div>
+
+        <div class="mockrow">
+          <div>
+            <p class="mockcap">引荐页 · AI 阶段的推荐理由示例（V1 无此区块）</p>
+            <div class="rec">
+              <div class="head"><span>引荐 · 第 12 期</span><span>还剩 2 天</span></div>
+              <div class="photo">照片位</div>
+              <div class="info">
+                <div class="who">林</div>
+                <div class="sub">31 岁 · 上海 · 硕士 · 产品经理</div>
+                <div class="facts">年收入 50–100 万 · 身高 165 · 上海交通大学</div>
+                <ul class="why">
+                  <li>你们都把孩子教育放在了长期规划的第一位</li>
+                  <li>她写的三条问答里，有两条和你选了同一道题</li>
+                  <li>作息都是早睡早起，都不吸烟</li>
+                </ul>
+                <div class="acts"><span>不合适</span><span class="go">想认识</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h4>理由的写法要求</h4>
+        <ul>
+          <li><strong>1–3 条，每条一句话。</strong>超过三条就没人看了</li>
+          <li><strong>必须具体到字段或原文。</strong>「你们很合适」是无效理由；「她也把周末爬山写进了兴趣」才是</li>
+          <li><strong>优先引用用户自己写下的内容</strong>，其次才是结构化字段的比对</li>
+          <li><strong>不编造。</strong>理由中的每一条都必须能追溯到双方档案中的真实数据。宁可少给一条理由，也不写凑数的</li>
+          <li><strong>不暴露隐私。</strong>不对外展示的字段（体重等）不出现具体数值，只能间接表达。已展示的字段可以引用，但不该当主菜 —— 「他年收入 50–100 万」不是「你们合适」的证据，它只是他自己填的一个数</li>
+        </ul>
+
+        <h3><span class="num">7.3</span>反馈闭环</h3>
+
+        <p>用户每一次回应都是训练信号，且本产品的信号质量远高于划卡产品：</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>信号</th><th>强度</th><th>用途</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>「想认识」且对方也想认识</td><td>最强正信号</td><td>强化这类组合的特征权重</td></tr>
+              <tr><td>「想认识」但对方不合适</td><td>中等正信号</td><td>仍说明用户偏好此类，但不代表是好的组合</td></tr>
+              <tr><td>「不合适」</td><td>负信号</td><td>降低同类推荐。但需区分是「条件不符」还是「没感觉」</td></tr>
+              <tr><td>超时未回应</td><td>弱负信号</td><td>可能是不活跃，也可能是引荐本身不够吸引人 —— 需结合打开情况判断</td></tr>
+              <tr><td>匹配后无对话 / 对话中断</td><td>强负信号</td><td>说明分数高但实际不合适，是修正模型最重要的信号</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>「不合适」时<strong>必须选择一个原因</strong>：条件不符 / 感觉不合适 / 其他。三个选项都是一次点击，不需要输入任何文字，选「其他」也不再追问。<span class="pill hard">已确认</span></p>
+
+        <p>设为必填是一个有代价的决定 —— 它给每一次「不合适」都增加一次点击，会小幅拉低引荐响应率。换来的是区分「条件不符」和「没感觉」的能力：前者说明硬条件或软偏好设置需要调整，后者说明打分模型在优化错误的目标。这是两个完全不同的产品动作，混在一起的数据价值接近于零。用一次点击换这个区分，划算。</p>
+
+        <p>必填只施加在负向路径上。<strong>「想认识」保持零摩擦</strong>，不要求用户填写任何东西 —— 愿意往前走的人不该被表单拦住。</p>
+
+        <h3><span class="num">7.4</span>冷启动</h3>
+
+        <p>池子小、反馈少的时候，AI 无米下炊。降级路径：</p>
+        <ol>
+          <li><strong>仅有硬条件</strong> —— 只做硬过滤，在通过的人里按资料完整度与活跃度排序</li>
+          <li><strong>加上规则打分</strong> —— 沿用反向匹配度、地域接近、生活方式重合等可解释的加权因子</li>
+          <li><strong>再加上语义匹配</strong> —— 问答与自述的语义相似度</li>
+          <li><strong>最后才是学习排序</strong> —— 有了足够的行为反馈之后再引入</li>
+        </ol>
+
+        <p>推荐理由的生成也要按这个顺序降级：反馈不足时，理由直接来自规则命中的字段（「你们的作息都是早睡早起」）；语义能力可用后，再生成更自然的表达。</p>
+      </section>
+
+      <!-- ============ 8 ============ -->
+      <section id="s8">
+        <h2 class="sec"><span class="num">08</span>通知设计</h2>
+
+        <p>通知是这个产品唯一的召回手段，也是它与用户之间全部关系的载体。用户对产品的印象，很大程度上就是「它多久打扰我一次、打扰得有没有道理」。</p>
+
+        <h3><span class="num">8.1</span>授权时机</h3>
+
+        <div class="callout warn">
+          <span class="label">关键</span>
+          <h4>绝不在首屏请求通知权限</h4>
+          <p>浏览器推送授权只能请求一次，被拒绝后极难挽回。用户在首屏对产品一无所知，此时请求授权，拒绝率最高，且拒绝之后再无触达手段。</p>
+        </div>
+
+        <p>正确的时机与顺序：</p>
+        <ol>
+          <li>用户完成入池建档，看到「你已进入推荐池」的确认页</li>
+          <li>页面上说明清楚打扰规则：「只有真的遇到合适的组合才会通知你。没有保底，也没有上限 —— 可能一周几次，也可能一个月没有一次。」</li>
+          <li>同一个界面上请用户留下邮箱作为兜底通道，说明用途：「推送被浏览器拦下时，我们会改用邮件」</li>
+          <li>用户点击「开启引荐通知」按钮，此时才触发浏览器授权弹窗</li>
+          <li>授权成功后立即发送一条测试通知：「引荐已开启。这是我们唯一会主动打扰你的理由。」</li>
+        </ol>
+
+        <p>第 5 步很重要 —— 用户需要一个真实的、无害的通知来建立预期，否则第一条真引荐到达时，他会以为遇到了骚扰。</p>
+
+        <p>邮箱和推送授权放在同一个界面，是因为用户此刻在做的是同一件事：<strong>决定我们用什么方式找到你</strong>。拆成两张表单，第二步的填写率会大幅下降。邮箱不做即时验证也能保存，首次发信时用确认链接验证即可 —— 在收集环节插一道验证码，损失的转化大于挡住的无效地址。</p>
+
+        <h3><span class="num">8.2</span>双通道：推送优先，邮件兜底</h3>
+
+        <p>触达是双通道。<span class="pill hard">已确认</span></p>
+
+        <ul>
+          <li>用户拒绝推送授权，或浏览器 / 网络环境不支持推送时，一律降级为邮件通知</li>
+          <li>已授权推送的用户，若引荐通知发出后 12 小时仍未打开，系统补发一封邮件</li>
+          <li>邮件只在推送未生效时发出。同一条引荐不会同时以两种方式到达</li>
+          <li>同一条引荐无论经过几个通道，<strong>只计一次频次</strong> —— 频次按引荐条数计，不按消息条数计（见 2.5）</li>
+        </ul>
+
+        <p><strong>全站通知只有三类。</strong>一是引荐通知，即 8.1 与 8.3 描述的主体；另外两类是引荐终结时的收尾通知与错过提醒（见 3.2），走同一套通道规则。后两类是一条引荐的收尾，不是新的招揽，所以不受 2.5「未响应冻结」限制 —— 可它们恰恰是发给不常来的人的，因此每条引荐各只发一次，绝不叠加。除此三类之外，不做任何运营类推送。</p>
+
+        <p>邮件正文可以承载比推送多得多的信息：对方的资料摘要，加上完整的推荐理由，链接回到引荐页。这是邮件渠道的优势，也是它必须克制的原因 —— 一封信息量过大的邮件读起来像营销邮件，不像朋友来信。正文保持在推送文案的基础上只多不少地加一段推荐理由，其余内容留给引荐页。</p>
+
+        <p>拒绝授权又没留邮箱的用户仍然要有站内兜底：保留未读引荐的角标与提示条，页面上常驻一条不打扰的提示说明如何重新开启浏览器通知（附分浏览器的操作路径）。用户下次访问且存在待查看引荐时，再用一句话询问一次是否可以开启 —— 不重复弹窗。</p>
+
+        <h3><span class="num">8.3</span>文案规范</h3>
+
+        <div class="mockrow">
+          <div>
+            <p class="mockcap">✅ 推荐写法 · 具体、克制、说清楚是谁</p>
+            <div class="push">
+              <div class="mark">信</div>
+              <div class="body">
+                <div class="app">有信</div>
+                <div class="title">给你找到一个人</div>
+                <div class="text">31 岁 · 上海 · 硕士 · 产品经理，和你一样把孩子教育排在长期规划的第一位</div>
+                <div class="when">刚刚</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="mockcap bad">❌ 禁止写法 · 诱导、施压、无信息量</p>
+            <div class="push">
+              <div class="mark">信</div>
+              <div class="body">
+                <div class="app">有信</div>
+                <div class="title">🔥 有人喜欢了你！</div>
+                <div class="text">快来看看是谁吧，24 小时后即将失效，错过再等一年…</div>
+                <div class="when">刚刚</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h4>文案规则</h4>
+        <ul>
+          <li>标题只说明事实，不超过 12 字。不用感叹号，不用 emoji 堆砌</li>
+          <li>正文给出最关键的一两个具体信息（年龄、城市、职业，或一条推荐理由），让用户能在通知里就判断值不值得点</li>
+          <li>不使用虚假紧迫感。「24 小时后失效」若时限确实是 72 小时，就是欺骗</li>
+          <li>不使用「有人喜欢了你」这类表述 —— 它暗示了单向的兴趣，但本产品的引荐是双方对等的。而且这条文案会训练用户「不点就亏了」的心态，与产品价值观冲突</li>
+          <li>不发送任何与引荐无关的通知。不做签到提醒、不做活动推广、不做「回来看看吧」</li>
+        </ul>
+
+        <h3><span class="num">8.4</span>用户可调的通知设置</h3>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>设置项</th><th>选项</th><th>默认</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>接收引荐通知</td><td>开 / 关</td><td>开</td></tr>
+              <tr><td>打扰上限</td><td>用户自设：最多每周 1 次 / 3 次 / 不限</td><td>不限（系统不设上限，由用户决定是否收紧）</td></tr>
+              <tr><td>免打扰时段</td><td>可自定义起止时间</td><td>22:00 – 09:00</td></tr>
+              <tr><td>匹配成功通知</td><td>开 / 关</td><td>开（不可关闭，这是用户自己促成的结果）</td></tr>
+              <tr><td>暂停接收引荐</td><td>暂停 1 周 / 1 个月 / 无限期</td><td>关</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>「暂停接收引荐」是必须提供的。用户可能正在和别人认真接触，此时他需要的是体面地退出，而不是注销账号。</p>
+
+        <p><strong>暂停的语义是「停止接收」，不是「消失」。</strong><span class="pill hard">已确认</span> 暂停期间，用户的资料仍留在池中、仍会出现在别人的引荐列表里。理由有两条：暂停多半是临时的，让用户为此丢掉整段时间的匹配机会并不合理；池子也不会因为一批人暂停而缩水。</p>
+
+        <p>由此带来一个必须处理的后果：<strong>你暂停期间，别人可能已经对你表达了兴趣，而你看不到。</strong>处理规则如下：</p>
+
+        <ul>
+          <li>涉及暂停用户的引荐，<strong>不启动 3.1 的超时计时</strong>，转为冻结状态</li>
+          <li>对方向你表达兴趣后，该条引荐一直保留，不会因 7 天规则被清掉</li>
+          <li>你恢复接收的那一刻，被冻结的引荐重新开始计时并出现在列表里</li>
+          <li>对方看到的始终是「等待回应」，不会被告知你处于暂停状态 —— 这属于你的个人状态，没有理由向他人披露</li>
+        </ul>
+
+        <p>代价是对方可能比平时等得久。这是接受「暂停不影响被看见」之后必然的取舍，产品选择承担它，而不是通过泄露你的状态来优化对方的体验。</p>
+      </section>
+
+      <!-- ============ 9 ============ -->
+      <section id="s9">
+        <h2 class="sec"><span class="num">09</span>匹配与沟通</h2>
+
+        <h3><span class="num">9.1</span>匹配成立</h3>
+        <p>双方都选择「想认识」时，立即成立匹配，同时向双方推送匹配通知，并开启会话。任一方选择「不合适」，本次引荐终结 —— 表达了「不合适」的一方不发任何通知；等待中的一方<strong>立即</strong>收到一条中性收尾通知，措辞不区分是被拒绝还是超时（见 3.2）。</p>
+
+        <h3><span class="num">9.2</span>破冰话题</h3>
+
+        <p>匹配后进入一个空会话是最尴尬的时刻 —— 双方都知道该说话，但不知道说什么。产品在这里提供三个破冰话题，全部来自双方的档案交集：</p>
+
+        <ul>
+          <li>「你们都想在一年内定下来，从这一点聊起？」</li>
+          <li>「她的问答里提到最近在学做饭，你写过喜欢做菜」</li>
+          <li>「你们都在周末爬山」</li>
+        </ul>
+
+        <p>话题由系统生成但<strong>不代发消息</strong>，只是作为建议放在输入框上方，用户可以点选采用、可以忽略。产品不替用户说话。</p>
+
+        <h3><span class="num">9.3</span>会话生命周期</h3>
+        <ul>
+          <li>会话开启后 90 天无任何消息，自动归档（可恢复）</li>
+          <li>任一方可随时解除匹配，解除后双方会话消失，且不再互相引荐</li>
+          <li>解除匹配不通知对方，静默处理 —— 这是成年人之间的体面</li>
+        </ul>
+
+        <h3><span class="num">9.4</span>不做的事</h3>
+        <ul>
+          <li>不做「谁看过我」（本产品没有浏览行为）</li>
+          <li>不做已读回执。用户不需要知道对方正在无视自己</li>
+          <li>不做「正在输入」提示的催促式设计</li>
+        </ul>
+      </section>
+
+      <!-- ============ 10 ============ -->
+      <section id="s10">
+        <h2 class="sec"><span class="num">10</span>安全与风控</h2>
+
+        <h3><span class="num">10.1</span>开放注册带来的问题</h3>
+        <p>开放注册意味着任何人都能进池。而本产品的引荐是<strong>直接推送到他人面前的</strong>，一条虚假资料的成本比在划卡产品里高得多。因此以下措施是准入的必要条件，不是可选项。</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>措施</th><th>要求</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><s>手机号验证</s></td><td><s>必须</s></td><td><strong>已删除。</strong>登录标识改为邮箱 + 密码后不再有手机号。手机号之所以是「必须」，是因为它是最贵的批量注册门槛（引荐直接推给别人，假档案的代价比滑动产品高）—— 这笔账现在全压在下三行上。<strong>代价是真实的：邮箱批量注册便宜得多。</strong>V1 有邮件通道后应补回邮箱验证</td></tr>
+              <tr><td>真实人像检测</td><td>必须</td><td>沿用 <code>stubborn-love</code> 已有的 <code>facedetect</code> 能力，确认头像中有人脸；后续可升级为活体检测</td></tr>
+              <tr><td>照片先审后发</td><td>必须</td><td>入池前完成审核。<strong>与 <code>stubborn-love</code> 的「上传即生效」相反</strong> —— 见 5.6</td></tr>
+              <tr><td>资料文本审核</td><td>必须</td><td>入池前的文本一律先审。入池后的编辑沿用「文本签名比对 + 快照回退」机制</td></tr>
+              <tr><td>敏感词过滤</td><td>必须</td><td>昵称、自我介绍、期待、问答、兴趣标签、消息，全覆盖</td></tr>
+              <tr><td>联系方式拦截</td><td>必须</td><td>昵称硬拦截（沿用原设计）；其余文本位「识别但不拦截」，消息中识别到手机号或微信号时给出警告</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">10.2</span>反杀猪盘</h3>
+        <ul>
+          <li>引荐列表中不提供任何交换联系方式的便捷入口</li>
+          <li>消息中首次出现联系方式时，向接收方显示风险提示，而非直接屏蔽 —— 正常用户也有交换联系方式的需求</li>
+          <li>对「短期内向大量用户发送相同内容」的账号进行限流</li>
+          <li>用户在举报时可选「疑似诈骗」，此类举报优先进入人工处理队列</li>
+        </ul>
+
+        <h3><span class="num">10.3</span>举报与拉黑</h3>
+        <ul>
+          <li>引荐页与资料页均提供举报入口，举报原因分类明确</li>
+          <li>拉黑立即生效：双方不再互相引荐，会话关闭</li>
+          <li>被举报达到阈值的账号自动移出推荐池，等待人工复核</li>
+          <li>复核期间账号仍在池外，宁可少推一个人，不冒推送风险内容的代价</li>
+        </ul>
+
+        <h3><span class="num">10.4</span>隐私</h3>
+        <ul>
+          <li>用户可查看完整的「别人能看到我的哪些字段」清单</li>
+          <li>体重、精确生日、家乡默认不对外展示</li>
+          <li>年收入对外展示，且只出区间、不出具体数字</li>
+          <li>注销账号后，档案数据与照片在 30 天内彻底删除；历史引荐记录做匿名化处理</li>
+        </ul>
+      </section>
+
+      <!-- ============ 11 ============ -->
+      <section id="s11">
+        <h2 class="sec"><span class="num">11</span>关键指标</h2>
+
+        <h3><span class="num">11.1</span>北极星指标</h3>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="k">北极星</div>
+            <div class="v">人均每周有效匹配数</div>
+            <div class="d">「有效匹配」指双方都表达了兴趣、且匹配后 24 小时内至少有一方开口。这个数字直接对应「你不需要刷，我们给你结果」</div>
+          </div>
+          <div class="kpi">
+            <div class="k">反向指标</div>
+            <div class="v">用户日均停留时长</div>
+            <div class="d">本产品不追求时长。若这个数字持续上升，说明产品正在变成一个划卡应用，应当视为警报</div>
+          </div>
+        </div>
+
+        <h3><span class="num">11.2</span>分层指标</h3>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>环节</th><th>指标</th><th>健康值参考</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>获客</td><td>首屏到开始建档的转化率</td><td>&gt; 25%</td></tr>
+              <tr><td>建档</td><td>入池档案完成率</td><td>&gt; 70%</td></tr>
+              <tr><td>建档</td><td>7 日内深度档案完成度</td><td>&gt; 60%</td></tr>
+              <tr><td>偏好</td><td>硬条件设置后候选池人数中位数</td><td>&gt; 100</td></tr>
+              <tr><td>触达</td><td>通知授权率</td><td>&gt; 60%</td></tr>
+              <tr><td>触达</td><td>推送打开率</td><td>&gt; 35%</td></tr>
+              <tr><td>触达</td><td>推送 + 邮件合计触达率（12 小时内被看到）</td><td>&gt; 85%</td></tr>
+              <tr><td>触达</td><td>邮件兜底送达率</td><td>&gt; 95%</td></tr>
+              <tr><td>触达</td><td>邮件打开率</td><td>&gt; 15%</td></tr>
+              <tr><td>引荐</td><td>引荐响应率（72 小时内回应）</td><td>&gt; 50%</td></tr>
+              <tr><td>引荐</td><td>「不合适」原因填写完成率</td><td>&gt; 95%（必填项，低于此值说明交互有阻碍）</td></tr>
+              <tr><td>引荐</td><td>引荐转化为匹配的比率</td><td>&gt; 30%</td></tr>
+              <tr><td>沟通</td><td>匹配后 24 小时内开口率</td><td>&gt; 60%</td></tr>
+              <tr><td>留存</td><td>收到过引荐的用户 30 日留存</td><td>&gt; 50%</td></tr>
+              <tr><td>健康度</td><td>举报率、拉黑率</td><td>持续监控，异常上升即预警</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">11.3</span>需要特别关注的失败模式</h3>
+        <ul>
+          <li><strong>静默流失</strong> —— 用户建完档，但长期不推送（池子不足），最后忘记了这个产品。需要监控「入池后 14 天内未收到任何引荐的用户占比」</li>
+          <li><strong>推送疲劳</strong> —— 推送打开率持续下降。需要监控连续 3 次推送未打开的用户占比</li>
+          <li><strong>高分低质</strong> —— 匹配数看起来正常，但匹配后无人开口。这说明打分模型在优化错误的目标</li>
+        </ul>
+      </section>
+
+      <!-- ============ 12 ============ -->
+      <section id="s12">
+        <h2 class="sec"><span class="num">12</span>版本规划</h2>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>版本</th><th>内容</th><th>目标</th><th>验收标准</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>V1 · 跑通闭环</strong></td>
+                <td>邮箱 + 密码登录 · 两段式建档 · 偏好设置与候选池试算 · 严格程度 · 硬条件 + 规则打分 · <strong>人工触发引荐</strong> · Web Push + 邮件双通道 · 引荐页与回应 · 匹配 · 会话 · 举报拉黑 · 运营后台</td>
+                <td>用小池子验证「主动引荐」这个模式本身是否成立</td>
+                <td>至少 50 对用户完成「收到引荐 → 双方回应 → 匹配 → 开口」的完整链路</td>
+              </tr>
+              <tr>
+                <td><strong>V2 · 引入 AI</strong></td>
+                <td>语义匹配（问答与自述）· 自动生成推荐理由 · 反馈闭环接入打分</td>
+                <td>把引荐从「人工挑」升级为「系统自动挑」，并让推荐质量随数据增长</td>
+                <td>系统自动生成的引荐，其匹配率不低于 V1 的人工引荐</td>
+              </tr>
+              <tr>
+                <td><strong>V3 · 规模与自学习</strong></td>
+                <td>学习排序 · 破冰话题生成 · 池子健康度监控 · 反作弊策略升级</td>
+                <td>在池子扩大后保持推荐质量不下降</td>
+                <td>池子扩大 10 倍后，引荐响应率不下降</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout">
+          <span class="label">关于 V1</span>
+          <p>V1 刻意<strong>不做 AI</strong>。理由是：引荐模式的成败取决于「成对高分组合是否成立」这个假设，而这个假设可以用人工挑选来验证。人工挑出来的引荐如果用户也不买账，那问题出在模式本身，做多少 AI 都救不回来。先验证模式，再投入算法。</p>
+        </div>
+
+        <div class="callout">
+          <span class="label">商业化接口</span>
+          <h4>推送次数是预留的付费权益</h4>
+          <p>早期不设推送次数上限，商业化阶段再把「更高的推送次数上限」作为付费权益引入（见 2.5）。这意味着一件事现在就要做对：<strong>计数逻辑按「可配置上限」实现，只是默认值设为无上限。</strong>否则将来加限制要动的是数据结构和扣减链路，而不只是改一个配置。</p>
+          <p>本阶段<strong>不做任何付费功能</strong>，也不在界面上预留付费入口。这里只是把将来要接的口留出来。</p>
+        </div>
+
+        <h3><span class="num">12.1</span>V1 的前置依赖</h3>
+        <ol>
+          <li><strong>首批种子用户</strong> —— 冷启动是最大风险，且没有技术手段可以弥补。目标城市已定为<strong>上海</strong>，需要据此制定投放策略；单城起步也意味着池子会更小，2.4 的降级策略在早期会长期处于生效状态</li>
+          <li><strong>邮件发送能力</strong> —— 需要发信域名、SMTP 配置与 SPF / DKIM / DMARC 记录，否则邮件会大量进垃圾箱。<code>stubborn-love</code> 已有 outbox 异步投递与腾讯 SES 的接入，可直接复用</li>
+          <li><strong>院校库数据</strong> —— 约 3000 条（校名 + 拼音 + 层级）静态数据，是建档流程的前置依赖。<code>stubborn-love</code> 已导入教育部全量名单（3141 所）与 QS 前 500，可直接复用</li>
+          <li><strong>敏感词库</strong> —— 需要一份完整可用的合规词表</li>
+          <li><strong>审核人力</strong> —— 「照片先审后发」意味着必须有审核排班，否则用户会卡在入池环节</li>
+        </ol>
+      </section>
+
+      <!-- ============ 13 ============ -->
+      <section id="s13">
+        <h2 class="sec"><span class="num">13</span>已确认决策</h2>
+
+        <p>以下决策已确认，正文各节均按此执行。决策涉及正文改动的地方，已在对应章节标注 <span class="pill hard">已确认</span>。</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>#</th><th>问题</th><th>决策</th><th>正文</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">01</td>
+                <td>池子不足时的降级策略</td>
+                <td><strong>接受单向引荐降级。</strong>池子 100–500 人时允许单向引荐，不设保底频次；低于 100 人时暂停自动引荐并向用户明示。单向引荐的等待上限 30 天</td>
+                <td class="mono">2.4</td>
+              </tr>
+              <tr>
+                <td class="num">02</td>
+                <td>严格程度是否可由用户调节</td>
+                <td><strong>允许。</strong>三档：稳妥 / 均衡（默认）/ 多看看。只调阈值不破硬条件，切换时即时刷新候选池人数</td>
+                <td class="mono">6.5</td>
+              </tr>
+              <tr>
+                <td class="num">03</td>
+                <td>暂停期间是否仍可被引荐给别人</td>
+                <td><strong>可以。</strong>暂停只停止接收，不停止被看见。涉及暂停用户的引荐冻结计时，用户恢复后重新计时，对方不会得知其暂停状态</td>
+                <td class="mono">8.4</td>
+              </tr>
+              <tr>
+                <td class="num">04</td>
+                <td>是否引入邀请机制</td>
+                <td><strong>不引入。</strong>开放注册是唯一入口，质量完全靠入池门槛、审核与完整度门槛守住</td>
+                <td class="mono">10.1</td>
+              </tr>
+              <tr>
+                <td class="num">05</td>
+                <td>首批目标城市</td>
+                <td><strong>上海。</strong>种子投放、审核排班、池子阈值均按单城设计。单城起步意味着早期会长期处于 2.4 的降级区间</td>
+                <td class="mono">12.1</td>
+              </tr>
+              <tr>
+                <td class="num">06</td>
+                <td>是否补邮件作为第二触达渠道</td>
+                <td><strong>补。</strong>推送优先、邮件兜底；推送 12 小时未打开则补发邮件；同一条引荐只计一次频次。邮箱在通知授权页顺带收集</td>
+                <td class="mono">8.1 / 8.2</td>
+              </tr>
+              <tr>
+                <td class="num">07</td>
+                <td>「不合适」的原因是否必填</td>
+                <td><strong>必填。</strong>三个一键选项（条件不符 / 感觉不合适 / 其他），不需要输入文字。「想认识」路径保持零摩擦</td>
+                <td class="mono">7.3</td>
+              </tr>
+              <tr>
+                <td class="num">08</td>
+                <td>产品名</td>
+                <td><strong>Tidings</strong> 为正式品牌名，中文只用「有信」。英文名不参与中文口语传播，避免发音损耗</td>
+                <td class="mono">全站</td>
+              </tr>
+              <tr>
+                <td class="num">09</td>
+                <td>是否设推送次数上限</td>
+                <td><strong>早期不设。</strong>频次完全由够格的组合数决定；用户可自行收紧，默认不限。次数上限留到商业化阶段作为付费权益引入，但计数逻辑现在按可配置上限实现</td>
+                <td class="mono">2.5 / 12</td>
+              </tr>
+              <tr>
+                <td class="num">10</td>
+                <td>各节草案数值（池子阈值、各类时限、完整度门槛、指标参考线）</td>
+                <td><strong>沿用当前草案值。</strong>其中指标参考线待 V1 跑完第一批真实数据后回归校准</td>
+                <td class="mono">全文</td>
+              </tr>
+              <tr>
+                <td class="num">11</td>
+                <td>年收入是否对外展示</td>
+                <td><strong>对外展示，且只出区间、不出具体数字</strong>，同时参与匹配打分。与 <code>stubborn-love</code> 相反 —— 那边刻意不展示。理由是收入本来就是用户会拿去判断的一项，藏起来不会让它消失，只会促使人绕到站外打听</td>
+                <td class="mono">5.1 / 5.4 B / 10.4</td>
+              </tr>
+              <tr>
+                <td class="num">12</td>
+                <td>是否保留宗教信仰字段</td>
+                <td><strong>删除。</strong>在中国大陆的严肃婚恋场景里区分度低、实际过滤价值有限，去掉少填一项。饮食习惯保留「清真」「素食」，以覆盖真实的饮食约束</td>
+                <td class="mono">5.4 E / 6.1</td>
+              </tr>
+              <tr>
+                <td class="num">13</td>
+                <td>成对引荐是否必须成立</td>
+                <td><strong>分阶段。</strong>池子规模未越过成对阈值时允许单向引荐降级；越过阈值后必须回到严格成对。这条线由池子规模决定，不由运营判断决定。<strong>成对是目标态，单向只是冷启动期的过渡</strong></td>
+                <td class="mono">2.1 · 2.2 · 2.4</td>
+              </tr>
+              <tr>
+                <td class="num">14</td>
+                <td>推送频次是否设上下限</td>
+                <td><strong>都不设。</strong>上限不设，保底也不设 —— 频次完全由这一周真的出现了几个够格的组合决定，可能整月为零。原「每周保底 1 次单向引荐」删除</td>
+                <td class="mono">2.5 · 2.4</td>
+              </tr>
+              <tr>
+                <td class="num">15</td>
+                <td>每条引荐是否必须带推荐理由</td>
+                <td><strong>分阶段。</strong>V1 人工引荐阶段不设理由位、不要求理由，运营可选填；AI 推荐上线后转为必需项，每条 1–3 条且必须可追溯到双方档案的真实数据</td>
+                <td class="mono">7.2</td>
+              </tr>
+              <tr>
+                <td class="num">16</td>
+                <td>完整度是否参与打分</td>
+                <td><strong>只做门槛，不参与打分，且刻意不对称。</strong>入池门槛决定能不能收引荐，深度档案门槛决定能不能被看到 —— 只入池的用户能收引荐、不会被引荐</td>
+                <td class="mono">5.5</td>
+              </tr>
+              <tr>
+                <td class="num">17</td>
+                <td>引荐终结时是否告知双方</td>
+                <td><strong>告知，双方都发，措辞不同。</strong>超时释放：未回应方收「你错过了 1 位合适的人」，等待方收中性收尾；被明确拒绝：等待方<strong>立即</strong>收同一套措辞，表达了「不合适」的一方不发。单向引荐不产生错过提醒</td>
+                <td class="mono">3.1 · 3.2 · 8.2</td>
+              </tr>
+              <tr>
+                <td class="num">18</td>
+                <td>1.3「不做焦虑营销」是否留例外</td>
+                <td><strong>留一个。</strong>引荐终结时的事实告知是唯一例外。它指向一个具体的人与一件已经结束的事，不施加「再不行动就亏了」的笼统压力。攀比类提示（「已有 N 人看过你」）仍在禁止之列</td>
+                <td class="mono">1.3 · 3.2</td>
+              </tr>
+              <tr>
+                <td class="num">19</td>
+                <td>登录标识用手机号还是邮箱</td>
+                <td><strong>邮箱 + 密码。</strong>不收短信，不发验证码。代价有两个且都认账：邮箱无法验证，批量注册比手机号便宜得多（10.1 的准入措施少了一条）；忘记密码在 MVP 期间只能由运营手动重置。<strong>这不是「用邮箱替代手机号」，是少了一道身份门槛</strong> —— 不要在文档里假装它还成立</td>
+                <td class="mono">10.1 · 8.2</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout warn">
+          <span class="label">未定事项</span>
+          <h4>尚未确认的事项统一收录在第 14 节</h4>
+          <p>本节只记录<strong>已确认</strong>的决策。所有待确认事项集中在第 14 节，确认一条就从那里删除，并补进本节。当前待确认 <span class="badge-count" data-open-count>11</span> 项。</p>
+        </div>
+      </section>
+
+      <!-- ============ 14 ============ -->
+      <section id="s14">
+        <h2 class="sec"><span class="num">14</span>待确认</h2>
+
+        <p>本节集中列出所有尚未确定的事项。<strong>条目一经确认，即从本节删除，并移入第 13 节「已确认决策」。</strong>本节清零之日，就是文档可以进入技术方案阶段之时。</p>
+
+        <p class="openhead">当前待确认 <span class="badge-count" data-open-count>11</span> 项</p>
+
+        <h3><span class="num">14.1</span>阻塞项 · 已全部拍板</h3>
+        <p>五条核心机制已全部确认，逐条移入第 13 节第 13–18 条。其中「批次过期后不告诉用户错过了谁」一条被反转 —— 现在是<strong>双方都告知</strong>，措辞不同。此处不再保留条目。</p>
+
+        <h3><span class="num">14.2</span>产品立场与范围 · 需要你确认</h3>
+        <p>这些是文档里我替你做的判断，未经你表态，且都会实质影响产品形态。</p>
+
+        <ul class="openlist blocking">
+          <li data-open-item>
+            <b>第 1.3 节的四条「明确不做」</b>
+            <p>不做无限浏览（不提供翻池子的入口）· 不做颜值竞技场（不显示人气、不设榜单）· 不做焦虑营销（不推「你的匹配率在下降」）· 不做站外引流的便捷路径。</p>
+            <p class="why">这四条是产品的价值观声明，会成为后续所有功能评审的依据。逐条确认或否掉，比笼统接受有用。</p>
+            <span class="ref">1.3</span>
+          </li>
+          <li data-open-item>
+            <b>新增的三组字段是否全部纳入 V1</b>
+            <p>C 关系目标（6 项，含婚育意愿、异地接受度、是否接受婚史）· D 生活方式（5 项）· E 三观问答（3 题）。</p>
+            <p class="why">关系目标组是硬条件的基础，建议必须进 V1。生活方式组和三观问答主要服务 AI 推荐，V1 若走人工引荐，可以考虑延后到 V2，先换来更快的上线。</p>
+            <span class="ref">5.4 C · D · E</span>
+          </li>
+          <li data-open-item>
+            <b>硬条件与软偏好的划分</b>
+            <p>我提议的划分：硬条件 5 项（年龄、地域、婚育意愿、是否接受有婚史、异地接受度），其余全部降为「很在意 / 一般 / 无所谓」的三档软偏好。</p>
+            <p class="why">这个划分直接决定候选池有多大。<strong>把收入或院校层级放进硬条件，池子会瞬间塌掉</strong>，这也是我建议它们只做软偏好的原因。但这属于产品价值判断，不是我能替你定的。</p>
+            <span class="ref">6.1</span>
+          </li>
+          <li data-open-item>
+            <b>收入对外展示之后，要不要配一个核验标识</b>
+            <p>纯自填与可核验两种做法：前者页面只标「自填」；后者允许上传个税、社保或银行流水，通过的在卡片上加一个标记，没通过或没传的照常展示、只是没有标记。</p>
+            <p class="why">收入一旦可展示就变成卖点，填高也就成了理性选择。区间形式（只出 1–6 档、不出具体数字）已经挡住「精确到万」的虚报，但档位本身仍会往上走。核验能压住这个倾向，代价是要做一套上传与审核流程，还会把没核验的人放在不利位置。这一项可以推到 V1 之后，看真实数据的分布再定。</p>
+            <span class="ref">5.4 B</span>
+          </li>
+        </ul>
+
+        <h3><span class="num">14.3</span>待准备 · 不是选择题</h3>
+        <p>这些不是需要决定的事项，是开工前必须就位的东西。做完一项划掉一项。</p>
+
+        <ul class="openlist prep">
+          <li data-open-item>
+            <b>种子用户投放策略</b>
+            <p>城市已定为上海，但怎么投、投多少、从哪里来，一个字都没定。</p>
+            <p class="why">这是整个项目最大的风险，且没有技术手段可以弥补。技术做得再好，池子空着就是没人用。</p>
+            <span class="ref">12.1</span>
+          </li>
+          <li data-open-item>
+            <b>审核人力与排班</b>
+            <p>「照片先审后发」是入池的硬前置。没有审核排班，用户会卡在入池环节，建档完成率直接崩掉。</p>
+            <span class="ref">10.1</span>
+          </li>
+          <li data-open-item>
+            <b>敏感词库</b>
+            <p>需要一份真正合规完整的词表。<code>stubborn-love</code> 里那份是占位词库，用上去等于没过滤。</p>
+            <span class="ref">10.1</span>
+          </li>
+          <li data-open-item>
+            <b>院校库数据</b>
+            <p>约 3000 条，校名 + 拼音 + 层级，是建档流程的前置依赖。<code>stubborn-love</code> 已导入教育部全量名单（3141 所）+ QS 前 500，可直接复用，但 QS 部分需按官方榜单核对补全。</p>
+            <span class="ref">12.1</span>
+          </li>
+          <li data-open-item>
+            <b>邮件发送能力</b>
+            <p>发信域名、SMTP 配置、SPF / DKIM / DMARC 记录，缺一样邮件就大量进垃圾箱。<code>stubborn-love</code> 已有 outbox 异步投递与腾讯 SES 接入，可复用。</p>
+            <span class="ref">8.2 · 12.1</span>
+          </li>
+        </ul>
+
+        <h3><span class="num">14.4</span>待数据校准 · 等 V1 跑起来再定</h3>
+        <p>这些不是现在能定的，需要真实数据才能给出有意义的取值。写在这里是为了不忘记它们还没有依据。</p>
+
+        <ul class="openlist prep">
+          <li data-open-item>
+            <b>第 11.2 节的指标参考线</b>
+            <p>整张表的「健康值参考」列都是草案默认值，不是行业基准，也没有任何来源。其余各节的数值（池子阈值、各类时限、完整度门槛）你已确认沿用。</p>
+            <p class="why">建议等 V1 跑完第一批真实数据后回归校准。在此之前，不要把它们当成团队的考核指标 —— 会被优化成好看的数字。</p>
+            <span class="ref">11.2</span>
+          </li>
+          <li data-open-item>
+            <b>被拒绝的收尾通知，是否改为到期统一发送</b>
+            <p>现在两种终结用同一套措辞，但拒绝是<strong>立即</strong>发 —— 等待方几秒内收到收尾，就能推断出自己是被当场拒绝的。「不泄漏原因」在设计上成立，在时机上不成立。</p>
+            <p class="why">改成到期统一发送，措辞和时机就都不泄漏了，代价是等待方多等几天，且在这几天里仍然以为有希望。哪一边更值得，取决于 V1 真实的「等待方在等待期内的回访率」—— 如果等待期回访率很低，多等几天等于多骗几天，就该维持立即发；如果等待期回访率很高，那几天是有效的期待，就值得改。</p>
+            <span class="ref">3.1 · 3.2</span>
+          </li>
+        </ul>
+
+        <p class="cleared" data-open-zero hidden>本节已清零。所有事项均已确认并移入第 13 节，文档可以进入技术方案阶段。</p>
+      </section>
+
+      <!-- ============ 附录 ============ -->
+      <section id="sa">
+        <h2 class="sec"><span class="num">A</span>附录：从 stubborn-love 继承的设计资产</h2>
+
+        <p>以下设计经过 <code>stubborn-love</code> 的实现验证，建议直接复用，不重新设计。</p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr><th>设计</th><th>内容</th><th>为什么值得复用</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>三段式状态与完整度</strong></td>
+                <td>数据库层必填字段全部可空 → 服务层在状态翻转前校验完整度 → 推荐只查 active 用户</td>
+                <td>这是「分步建档可中断」能成立的地基，也保证了推荐池里永远不会出现半截资料</td>
+              </tr>
+              <tr>
+                <td><strong>文本签名比对 + 快照回退</strong></td>
+                <td>改动文本字段前先比对签名，只有文本变化才触发审核；被拒时恢复快照，用户保持可用状态继续整改</td>
+                <td>避免「改个身高就被下架」，且二次编辑不会覆盖审核基线</td>
+              </tr>
+              <tr>
+                <td><strong>服务端字段归一</strong></td>
+                <td>院校层级等派生字段一律由服务端根据原始输入计算，不接受前端传值</td>
+                <td>防止用户自封高层级，是所有影响匹配的字段都该遵循的原则</td>
+              </tr>
+              <tr>
+                <td><strong>隐藏字段参与匹配</strong></td>
+                <td>体重不对外展示，但参与过滤与打分；接口层结构体刻意不包含该字段</td>
+                <td>既保护隐私，又保留匹配信息量。关键在于接口设计上就杜绝泄漏，而不是靠前端不显示。<strong>本产品把年收入移出了这个名单</strong>（见 5.4 B）</td>
+              </tr>
+              <tr>
+                <td><strong>反向匹配度因子</strong></td>
+                <td>「我满足对方偏好的比例」作为最高权重因子</td>
+                <td>避免把配额浪费在不可能回应我的人身上。在引荐场景下价值更高</td>
+              </tr>
+              <tr>
+                <td><strong>偏好「不限」的三处协同</strong></td>
+                <td>控件显示「不限」+ 语义上 <code>null</code> 即不限 + SQL 侧 <code>IS NULL OR</code>；清空直接传 null，无需额外清除接口</td>
+                <td>一套简洁的自洽设计，避免了「清除偏好」这类多余接口</td>
+              </tr>
+              <tr>
+                <td><strong>昵称联系方式拦截</strong></td>
+                <td>昵称是全站唯一硬拦截联系方式的文本位</td>
+                <td>昵称出现在卡片正面，引流成本最低，拦截性价比最高</td>
+              </tr>
+              <tr>
+                <td><strong>资源可见性用 404 而非 403</strong></td>
+                <td>无权访问的资源返回 404，不确认资源是否存在</td>
+                <td>避免通过状态码探测他人资料的存在性</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3><span class="num">A.1</span>需要避开的已有问题</h3>
+        <p>以下问题在 <code>stubborn-love</code> 中真实存在，新产品不应复制：</p>
+        <ul>
+          <li><strong>向导无断点续填</strong> —— 数据已落库但组件不回填，用户重进需重走流程</li>
+          <li><strong>枚举口径不一致</strong> —— 学历代码限 1–4，数据库约束却允许 1–5，第 5 档不可达。枚举真源必须唯一</li>
+          <li><strong>PRD 与实际实现漂移</strong> —— 候选池人数试算、偏好默认值、未建档强制跳转等要求写了但未实现。建议新产品建立「PRD 条目 ↔ 实现」的对照检查</li>
+          <li><strong>用户 ID 直接下发自增整数</strong> —— 原 PRD 声称使用混淆 ID，实际未做</li>
+          <li><strong>性别不可修改且无兜底</strong> —— 填错只能注销</li>
+        </ul>
+      </section>
+
+      <p class="foot">
+        Tidings · 有信 · 产品需求文档 v0.7 · 2026-09-24 · 本文档只描述产品与体验，技术方案另行输出。<br>
+        v0.7 变更：登录标识由手机号改为<strong>邮箱 + 密码</strong>（新增决策 19）。涉及 4 用户旅程「入池建档」、10.1 准入措施、12 版本规划 V1 与 13 决策表。10.1 的「手机号验证」一条<strong>删除</strong>而非放宽 —— 准入门槛少了一道，代价记在决策 19 里。
+      </p>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var n = document.querySelectorAll('[data-open-item]').length;
+    var counts = document.querySelectorAll('[data-open-count]');
+    for (var i = 0; i < counts.length; i++) counts[i].textContent = n;
+    var zero = document.querySelector('[data-open-zero]');
+    if (zero) zero.hidden = n !== 0;
+  })();
+</script>
