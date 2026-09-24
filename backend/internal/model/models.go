@@ -71,13 +71,15 @@ func (User) TableName() string { return "users" }
 type Profile struct {
 	UserID int64 `gorm:"primaryKey"`
 
-	// 必填 6 项
+	// 必填 8 项
 	Nickname       *string
 	Gender         *string // M / F，设定后不可改；匹配一律异性，故无 seeking 字段
 	BirthYM        *int    `gorm:"column:birth_ym"` // 如 199505
 	CityCode       *int
 	HeightCM       *int16 `gorm:"column:height_cm"`
+	WeightKG       *int16 `gorm:"column:weight_kg"`
 	EducationLevel *int16
+	SchoolName     string `gorm:"not null;default:''"`
 
 	// BirthDay 是出生日（1–31），000003 迁移补的。NULL = 只知道年月。
 	//
@@ -87,10 +89,8 @@ type Profile struct {
 	// 静默掉出池子。它只用来在自己的资料页上把生日显示完整。
 	BirthDay *int16 `gorm:"column:birth_day"`
 
-	// 选填 12 项
+	// 选填 10 项
 	HometownCode *int
-	WeightKG     *int16 `gorm:"column:weight_kg"`
-	SchoolName   string `gorm:"not null;default:''"`
 	// SchoolTier 仅由服务端按院校库归一，不接受前端传值（M2 接 schools 包）
 	SchoolTier  *int16
 	Occupation  string `gorm:"not null;default:''"`

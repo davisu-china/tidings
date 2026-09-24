@@ -37,23 +37,23 @@ const minPhotosForActive = 1
 // 全部用指针：建档是分步向导，每一步只提交自己那几个字段，
 // 必须能区分「这次没提交」和「提交了空值」。
 type ProfileInput struct {
-	// 必填 6 项
+	// 必填 8 项
 	Nickname       *string `json:"nickname"`
 	Gender         *string `json:"gender"`
 	BirthYM        *int    `json:"birth_ym"`
 	CityCode       *int    `json:"city_code"`
 	HeightCM       *int16  `json:"height_cm"`
+	WeightKG       *int16  `json:"weight_kg"`
 	EducationLevel *int16  `json:"education_level"`
+	SchoolName     *string `json:"school_name"`
 
 	// BirthDay 与 BirthYM 配对提交，单独提交会被拒（没有年月就无从判断
-	// 这一天存不存在）。它不在必填 6 项里：老档案只知道年月，逼他们补一个
+	// 这一天存不存在）。它不在必填 8 项里：老档案只知道年月，逼他们补一个
 	// 日子等于逼人编造。
 	BirthDay *int16 `json:"birth_day"`
 
-	// 选填 12 项
+	// 选填 10 项
 	HometownCode *int    `json:"hometown_code"`
-	WeightKG     *int16  `json:"weight_kg"`
-	SchoolName   *string `json:"school_name"`
 	Occupation   *string `json:"occupation"`
 	Company      *string `json:"company"`
 	IncomeBand   *int16  `json:"income_band"`
@@ -67,8 +67,8 @@ type ProfileInput struct {
 	// 硬条件两项。它们是「我自己的情况」，与 preferences 侧的
 	// 「我要求对方怎样」是两回事，匹配时要把两边对着比。
 	//
-	// 不计入完整度：§4.2 的 12 项选填是逐一列过的，这两项不在其中，
-	// 加进来会把所有人的完成度改掉，也会让那 12 项的清单失去意义。
+	// 不计入完整度：§4.2 的选填项是逐一列过的，这两项不在其中，
+	// 加进来会把所有人的完成度改掉，也会让那张清单失去意义。
 	//
 	// 异地接受度不在这里 —— 它属于偏好，走 /me/preferences。
 	WantChild     *int16 `json:"want_child"`
@@ -178,9 +178,12 @@ func (s *Service) UpdateProfile(ctx context.Context, user *model.User, in *Profi
 // applyProfileState 重算完整度，并在入池条件齐备时把 status 翻成 active。
 //
 // 两件事必须在一起做，而且必须被资料接口和媒体接口共用：
-// 入池条件 = 6 项必填 + 头像 + ≥1 张照片，其中头像和照片不是资料接口设的。
+// 入池条件 = 8 项必填 + 头像 + ≥1 张照片，其中头像和照片不是资料接口设的。
 // 只在 UpdateProfile 里判翻牌的话，「先填资料、再传头像和照片」这条
 // 最自然的路径永远翻不了牌 —— 用户明明什么都填完了，还是卡在建档流程里。
+//
+// 门槛只在 status = onboarding 时判。往后再加必填项，已经入池的人不会被
+// 踢回来 —— 那会连同他们已有的引荐和会话一起失效。新门槛只拦新档案。
 //
 // 调用方传 photoCount 是为了避免重复 COUNT；p 必须是已经落库的那一行。
 func (s *Service) applyProfileState(ctx context.Context, user *model.User, p *model.Profile, photoCount int) {
@@ -507,10 +510,15 @@ func daysInMonth(year, month int) int {
 	}
 }
 
-// requiredMissing 是入池门槛里 profiles 表能表达的那部分：必填 6 项 + 头像。
+// requiredMissing 是入池门槛里 profiles 表能表达的那部分：必填 8 项 + 头像。
 // 照片数不入这张单子，因为它不在 profiles 里。
 //
-// 一共 7 项，也是完整度算法里 required 的基数（见 §4.2）。
+// 一共 9 项，也是完整度算法里 required 的基数（见 §4.2）。
+//
+// 体重与毕业院校是后加的（原为必填 6 项 + 头像）。它们和身高、学历是同一类
+// 东西：身高体重是一组外形上的硬条件，学历院校是一组教育背景上的硬条件，
+// 只问一半会让「硬条件过滤」在池子里留下半张档案。代价是门槛变高、
+// 完整度公式的分母跟着变（见 completeness），两处必须一起改。
 func requiredMissing(p *model.Profile) []string {
 	// 返回空切片而不是 nil：JSON 里是 []，前端 .length 不会炸，
 	// 也不必在每处调用点写 ?? []
@@ -525,12 +533,14 @@ func requiredMissing(p *model.Profile) []string {
 	add(p.BirthYM == nil, "birth_ym")
 	add(p.CityCode == nil, "city_code")
 	add(p.HeightCM == nil, "height_cm")
+	add(p.WeightKG == nil, "weight_kg")
 	add(p.EducationLevel == nil, "education_level")
+	add(p.SchoolName == "", "school_name")
 	add(p.AvatarKey == "", "avatar_key")
 	return missing
 }
 
-// admissionMissing 是翻 status = active 的全部条件：7 项必填再加照片数。
+// admissionMissing 是翻 status = active 的全部条件：9 项必填再加照片数。
 //
 // 与完整度分开：照片不参与 60/40 的完整度计算（§4.2），
 // 但它是入池的必要条件。两件事混在一起会让「完整度」这个数字
@@ -549,11 +559,13 @@ func admissionMissing(p *model.Profile, photoCount int) []string {
 // 刻意不收照片数：照片不属于 profiles 表，也不该影响这个数字
 // （见 admissionMissing 的说明）。算法是文档 §4.2 的原样实现。
 func completeness(p *model.Profile) int {
-	const totalRequired = 7 // 6 个标量 + 头像
+	const totalRequired = 9 // 8 个标量 + 头像
 	filledRequired := totalRequired - len(requiredMissing(p))
 
+	// 体重与毕业院校挪去了 requiredMissing，所以不再在这里出现；
+	// 选填因此从 12 项降到 10 项。分母两边一起变，60/40 的比例不变。
 	optional := []bool{
-		p.HometownCode != nil, p.WeightKG != nil, p.SchoolName != "",
+		p.HometownCode != nil,
 		p.Occupation != "", p.Company != "", p.IncomeBand != nil,
 		p.Chronotype != nil, p.Smoking != nil, p.Drinking != nil,
 		p.Hobbies != "", p.Intro != "", p.Expectation != "",

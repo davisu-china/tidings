@@ -117,7 +117,7 @@ func (s *Service) SetAvatar(ctx context.Context, user *model.User, objectKey str
 		return "", apierr.ErrInternal
 	}
 
-	// 换了头像可能刚好凑齐入池条件（头像本身就是必填 7 项之一）
+	// 换了头像可能刚好凑齐入池条件（头像本身就是必填 9 项之一）
 	s.syncAfterMedia(ctx, user)
 
 	if prev != "" && prev != objectKey {

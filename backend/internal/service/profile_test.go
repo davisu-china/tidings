@@ -14,7 +14,7 @@ func str(s string) *string { return &s }
 func num(i int) *int       { return &i }
 func i16(i int16) *int16   { return &i }
 
-// fullProfile 造一份七项必填齐全、选填全空的资料。
+// fullProfile 造一份九项必填齐全、选填全空的资料。
 // 它是完整度算法里 60 分的那个基准点。
 func fullProfile() model.Profile {
 	return model.Profile{
@@ -23,7 +23,9 @@ func fullProfile() model.Profile {
 		BirthYM:        num(199505),
 		CityCode:       num(110000),
 		HeightCM:       i16(178),
+		WeightKG:       i16(65),
 		EducationLevel: i16(3),
+		SchoolName:     "复旦大学",
 		AvatarKey:      "u/1/abc.jpg",
 	}
 }
@@ -54,7 +56,7 @@ func TestRequiredMissingCountsAvatar(t *testing.T) {
 }
 
 // TestCompletenessMatchesDoc 钉住文档 §4.2 的公式：
-// filledRequired/7*60 + filledOptional/12*40，四舍五入取整。
+// filledRequired/9*60 + filledOptional/10*40，四舍五入取整。
 // 这个数字直接决定用户能不能被引荐，改动必须先改文档。
 func TestCompletenessMatchesDoc(t *testing.T) {
 	cases := []struct {
@@ -66,14 +68,16 @@ func TestCompletenessMatchesDoc(t *testing.T) {
 		{"全空", func(p *model.Profile) { *p = model.Profile{} }, 0},
 		{
 			"必填缺一项", func(p *model.Profile) { p.HeightCM = nil },
-			51, // 6/7*60 = 51.43
+			53, // 8/9*60 = 53.33
 		},
 		{
-			"必填齐全 + 6 项选填", func(p *model.Profile) {
+			// 这里只设了 5 项选填：SchoolName 曾是选填，现在是必填，
+			// fullProfile 已经给过它，所以它不再贡献选填分。
+			"必填齐全 + 5 项选填", func(p *model.Profile) {
 				p.SchoolName, p.Occupation, p.Company = "A", "B", "C"
 				p.Intro, p.Expectation, p.Hobbies = "i", "e", "h"
 			},
-			80, // 60 + 6/12*40
+			80, // 60 + 5/10*40
 		},
 		{
 			"全部填满", func(p *model.Profile) {

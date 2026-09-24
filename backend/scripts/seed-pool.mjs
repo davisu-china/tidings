@@ -64,6 +64,10 @@ const SURNAMES = '林周陈许沈顾苏谢钟傅柯邵'.split('')
 const GIVEN = ['砚', '迟', '屿', '青野', '南亭', '知遥', '亦白', '和风', '秋叙', '素笺', '长风', '明川']
 
 const OCCUPATIONS = ['产品经理', '后端工程师', '中学教师', '外科医生', '建筑师', '编辑', '律师', '插画师', '数据分析师', '翻译']
+// 毕业院校现在是入池必填。用真实校名而不是占位串：后端会拿它去
+// internal/pkg/schools 里查 school_tier，编出来的名字查不到层级，
+// 池子里的 tier 会整列落空，而 tier 是要参与匹配的。
+const SCHOOLS = ['复旦大学', '浙江大学', '南京大学', '武汉大学', '中山大学', '四川大学']
 const HOBBIES = ['徒步', '摄影', '做饭', '羽毛球', '看展', '骑行', '养猫', '爬山', '古典乐', '下厨', '潜水', '写字']
 const INTROS = [
   '喜欢摄影和徒步，周末多半在外面。工作日反而安静，下班回家做饭。',
@@ -126,7 +130,7 @@ function profileFor(i) {
     education_level: (i % 4) + 1,
     hometown_code: [110000, 310000, 440100, 510100][i % 4],
     weight_kg: male ? 62 + (i % 15) : 48 + (i % 12),
-    school_name: '',
+    school_name: SCHOOLS[i % SCHOOLS.length],
     occupation: OCCUPATIONS[i % OCCUPATIONS.length],
     company: '',
     income_band: (i % 6) + 1,
