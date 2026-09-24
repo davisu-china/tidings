@@ -499,7 +499,7 @@
             </thead>
             <tbody>
               <tr><td><strong>注册登录</strong></td><td>邮箱 + 密码（bcrypt），JWT 双 token。<strong>无验证码、无找回、无邮箱验证</strong></td><td class="mono">—</td></tr>
-              <tr><td><strong>建档</strong></td><td>6 项必填 + 头像 + ≥1 张照片入池；12 项选填构成深度档案。分步保存且<strong>可续填</strong></td><td class="mono">5.2 · 5.5</td></tr>
+              <tr><td><strong>建档</strong></td><td>8 项必填 + 头像 + ≥1 张照片入池；10 项选填构成深度档案。分步保存且<strong>可续填</strong></td><td class="mono">5.2 · 5.5</td></tr>
               <tr><td><strong>偏好</strong></td><td>硬条件 5 项 + 软偏好 3 项（学历 / 身高 / 收入带），单一阈值，不做严格程度三档</td><td class="mono">6.1 · 决策 02 延后</td></tr>
               <tr><td><strong>匹配</strong></td><td><strong>规则打分，非 AI</strong>。硬条件过滤 → 双向分数 → 取够格的对</td><td class="mono">7.1 的规则版</td></tr>
               <tr><td><strong>引荐</strong></td><td>成对优先；池子不足时按 2.4 阶梯降级为单向。生命周期五态 + 过期扫描</td><td class="mono">决策 13 · 3.1</td></tr>
@@ -551,7 +551,7 @@
 
   邮箱注册 ────────────►  建 users 行，status = onboarding
      │
-  建档 6 项必填 + 头像 + ≥1 张照片
+  建档 8 项必填 + 头像 + ≥1 张照片
      │                          completeness 重算
      └──────────────────►  missing_required 为空 → status = active
                                      │
@@ -623,7 +623,7 @@
 
         <p>两段式，这是完整版 PRD 5.2 的简化落地。</p>
 
-        <h4>入池门槛（第一段，必填 6 项）</h4>
+        <h4>入池门槛（第一段，必填 8 项）</h4>
 
         <div class="tw">
           <table>
@@ -634,7 +634,9 @@
               <tr><td class="mono">birth_ym</td><td>YYYYMM，18–60 岁</td><td>年龄是硬条件的基础</td></tr>
               <tr><td class="mono">city_code</td><td>国标 6 位，110000–829999</td><td>地域是硬条件的基础</td></tr>
               <tr><td class="mono">height_cm</td><td>140–210</td><td>软偏好可筛，不填等于放弃一项匹配信号</td></tr>
+              <tr><td class="mono">weight_kg</td><td>35–150</td><td>与身高成组。只问一半，外形这一组在池子里就是半张档案（v1.6 加）</td></tr>
               <tr><td class="mono">education_level</td><td>大专及以下 / 本科 / 硕士 / 博士</td><td>同上</td></tr>
+              <tr><td class="mono">school_name</td><td>≤40 字，自由文本；层级由 <code>schools.TierOf</code> 归一</td><td>与学历成组。自由文本是必须的 —— 校不在库里也得填得进去，否则「必填」会变成「填不出来」（v1.6 加）</td></tr>
               <tr><td class="mono">avatar_key</td><td>一张通过审核的头像</td><td>没有脸的引荐卡没人会点</td></tr>
             </tbody>
           </table>
@@ -648,7 +650,7 @@
 
         <p><code class="mono">birth_day</code>（出生日 1–31）<strong>不在门槛里</strong>，也不进完成度。它是界面上「出生日期」三级联动的第三级（年 → 月 → 日），只把生日显示完整。年龄始终按 <code class="mono">birth_ym</code> 的月粒度算，日不参与任何计算：加进门槛会让存量老用户（只知道年月）的完成度掉到门槛以下，静默掉出候选池。</p>
 
-        <h4>深度档案门槛（第二段，选填 12 项）</h4>
+        <h4>深度档案门槛（第二段，选填 10 项）</h4>
 
         <p>选填项按模块分组渐进填写，不强制一次填完。填到 <strong>完成度 ≥ 60%</strong> 才进「可被别人看到」的名单。</p>
 
@@ -656,23 +658,23 @@
           <table>
             <thead><tr><th>模块</th><th>选填字段</th><th>组内项数</th></tr></thead>
             <tbody>
-              <tr><td>基本盘补充</td><td class="mono">hometown_code · weight_kg · school_name · occupation · company · income_band</td><td class="num">6</td></tr>
+              <tr><td>基本盘补充</td><td class="mono">hometown_code · occupation · company · income_band</td><td class="num">4</td></tr>
               <tr><td>生活方式</td><td class="mono">chronotype · smoking · drinking · hobbies</td><td class="num">4</td></tr>
               <tr><td>自述</td><td class="mono">intro · expectation</td><td class="num">2</td></tr>
             </tbody>
           </table>
         </div>
 
-        <p>完成度算法沿用 <code>stubborn-love</code> 的 60/40 结构，但必填基数从 11 项改为 7 项（含头像），选填从 6 项改为 12 项：</p>
+        <p>完成度算法沿用 <code>stubborn-love</code> 的 60/40 结构，但必填基数从 11 项改为 9 项（含头像），选填从 6 项改为 10 项：</p>
 
         <pre><code><span class="c">// completeness 算 0..100 的资料完整度。不参与匹配打分，只做门槛。</span>
 <span class="c">// 必填占 60 分，选填占 40 分 —— 选填给足权重，是为了让用户有动力补。</span>
 <span class="k">func</span> completeness(p *model.Profile, photoCount <span class="k">int</span>) <span class="k">int</span> {
-    <span class="k">const</span> totalRequired = 7   <span class="c">// 6 标量 + 头像</span>
+    <span class="k">const</span> totalRequired = 9   <span class="c">// 8 标量 + 头像</span>
     filledRequired := totalRequired - len(missingRequired(p))
 
     optional := []<span class="k">bool</span>{
-        p.HometownCode != <span class="k">nil</span>, p.WeightKG != <span class="k">nil</span>, p.SchoolName != <span class="s">""</span>,
+        p.HometownCode != <span class="k">nil</span>,
         p.Occupation != <span class="s">""</span>, p.Company != <span class="s">""</span>, p.IncomeBand != <span class="k">nil</span>,
         p.Chronotype != <span class="k">nil</span>, p.Smoking != <span class="k">nil</span>, p.Drinking != <span class="k">nil</span>,
         p.Hobbies != <span class="s">""</span>, p.Intro != <span class="s">""</span>, p.Expectation != <span class="s">""</span>,
@@ -691,7 +693,7 @@
           <span class="label">不对称</span>
           <h4>能收引荐，和能被引荐，是两个门槛</h4>
           <p>只过入池门槛的用户<strong>能收到引荐，但不会被引荐给别人</strong>（决策 16）。这是驱动补全的杠杆：他想被看见，就得把深度档案补到 60%。</p>
-          <p>页面上的呈现照完整版 PRD 5.5：常驻一条「你的档案已完整 45%，补全后才会被引荐给别人」，并列出缺哪几项、每项影响什么。不写「完善资料」这种空话。</p>
+          <p>页面上的呈现（v1.6 改）：<strong>不报完成度、也不列「还差哪几项」</strong>。首页空状态只说「暂时没有新的引荐。我们在替你看着。」；「我的」页只说进没进池子 —— 进了就是「入池条件已满足，可以收到引荐了」。分数留在服务端，它是门槛不是进度条；缺项该在编辑页里对着字段看，而不是在首页挂一张用户此刻够不着的清单。</p>
         </div>
 
         <h4>分步保存与续填</h4>
@@ -864,7 +866,7 @@
               <tr>
                 <td class="mono">16 完整度门槛</td>
                 <td>60/40 拆分，入池 11 项必填</td>
-                <td>60/40 结构不变，必填基数降为 7 项、选填升为 12 项</td>
+                <td>60/40 结构不变，必填基数降为 9 项、选填升为 10 项</td>
                 <td>完整版把必填压到 6 项 + 头像，选填变多，对称调整权重才不失真</td>
               </tr>
               <tr>
@@ -1098,7 +1100,7 @@
 
         <pre><code><span class="k">CREATE TABLE</span> profiles (
     user_id          BIGINT PRIMARY KEY <span class="k">REFERENCES</span> users (id) <span class="k">ON DELETE CASCADE</span>,
-    <span class="c">-- 必填 6 项。DB 层可空：建档是分步向导，用户可能中途退出。</span>
+    <span class="c">-- 必填 8 项。DB 层可空：建档是分步向导，用户可能中途退出。</span>
     <span class="c">-- 完整性由 service 层在翻 status=active 之前强制校验，</span>
     <span class="c">-- 而候选池只读 status='active'，所以半成品档案永远不会被看到。</span>
     nickname         TEXT,
@@ -1109,7 +1111,7 @@
     height_cm        SMALLINT,
     education_level  SMALLINT,         <span class="c">-- 1..4</span>
 
-    <span class="c">-- 选填 12 项，构成深度档案</span>
+    <span class="c">-- 选填 10 项，构成深度档案</span>
     hometown_code    INTEGER,
     weight_kg        SMALLINT,
     school_name      TEXT     <span class="k">NOT NULL DEFAULT</span> <span class="s">''</span>,
@@ -2602,7 +2604,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
               <tr>
                 <td class="num">02</td>
                 <td><strong>完整度第二道门槛的阈值</strong></td>
-                <td>保留 60%，即 12 项选填里填满 8 项</td>
+                <td>保留 60%，即 10 项选填里填满 8 项</td>
                 <td>MVP 的选填字段比完整版 PRD 少，这道门槛的实际约束力需要观察。<strong>如果它形同虚设，就等于决策 16 的「不对称」没有落地</strong>；如果太严，用户会卡在「收得到引荐但没人看得见我」的困惑里。跑两周看 <code>completeness</code> 的分布再定</td>
               </tr>
             </tbody>
@@ -2618,6 +2620,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
         v1.3 变更（M1 落地后的回填）：Go 1.25 → <strong>1.26</strong>（<code>x/crypto</code> 及其拉起的 <code>x/sys</code> / <code>x/text</code> 要求 1.26，容器基础镜像同步）；图片输入<strong>加收 PNG</strong>，输出仍是 JPEG 三档（17 章、§21）；新增<strong>直传孤儿对象</strong>风险条目（§21），并写明「照片先审后发、文本先审」实际要等 M5 的审核队列，M1–M4 唯一在跑的自动门槛是人脸检测（§4.1、§21）；<strong>照片人脸检测提前进 M1</strong>，但只用于头像（§3）；18.2 的建档与媒体接口按实现改写（<code>PATCH</code> 而非 <code>PUT</code>、<code>PUT /me/avatar</code>、<code>PUT /me/photos/order</code>）；18.4 写明 <code>X-Admin-Token</code> 头的选择理由。<br>
         v1.4 变更：<strong>入池照片门槛 3 张 → 1 张</strong>（4.1、4.2、7 章、M1 验收）。首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外；引荐卡只取第 1 张当封面，1 张的卡是完整的卡，多传照片从门槛降级为建议。随之新增 <code>LAST_PHOTO</code> 保护：删掉最后一张会让池子里出现没有封面的用户，服务端直接拒绝（删照片本来就不会把 <code>status</code> 退回 onboarding，所以这道拦截是必须的，不是冗余）。照片不进 <code>completeness</code>，这次改动不涉及「完整度 ≥ 60」那条红线，也不需要迁移。<br>
         v1.5 变更（19.2 建单向导）：<strong>出生日期、所在城市、家乡各收成一个字段 + 底部弹层滚轮</strong>。这不是新设计，是把 5.3 早就定下的「SheetPicker / WheelPicker」与「省市两级弹层」补进实现 —— M1 落地时为赶进度用的原生 <code>select</code>（年 / 月 / 日三个、省 / 市两个）在 19.2 里没有对应条目，这次一并改写。出生日期一屏三列、城市与家乡一屏两列（先省后市）；点「完成」才落库，Escape / 取消 / 点遮罩丢弃草稿。同时补上了自绘滚轮欠下的可达性（<code>role="listbox"</code> + 方向键、弹层焦点陷阱、Escape、背景滚动锁）——原生 <code>select</code> 本来用键盘就能操作，换成滚轮是一次真实的可达性回退，这几条是补丁不是等价物。弹层<strong>不做入场动画</strong>，理由同 19.3：全站唯一的动效是印章，它靠稀缺性成立。后端与字段契约（<code>birth_ym</code> / <code>birth_day</code> / <code>city_code</code>）一行未动，18.2 不受影响。<br>
+        v1.6 变更（19.2 建单向导与入池门槛）：<strong>入池必填由 6 项扩到 8 项</strong> —— <code>weight_kg</code>（35–150）与 <code>school_name</code>（≤40 字）由选填转为必填（4.1 / 4.2 / 5.2）。理由是把它们各自和已有的门槛配成对：身高配体重、学历配院校，只问一半会让「硬条件」在池子里留下半张档案。连带两处：完成度公式的分母从 7 / 12 改为 <code>totalRequired = 9</code> / 选填 10 项（60/40 的比例不变，但所有人的完成度会重算）；<code>school_name</code> 保持自由文本、不校院校库 —— 库外的学校也得填得进去，否则「必填」会变成「填不出来」（层级仍由 <code>schools.TierOf</code> 归一）。门槛仍然只在 <code>status = onboarding</code> 时判，已入池的人不会被踢回来，新门槛只拦新档案。同批改动的还有向导本身：外形与学历<strong>拆成两页</strong>（每页只装一块内容，四步变五步），并<strong>不再向用户呈现完成度与缺项清单</strong>（见 4.2 的「不对称」一段）。<br>
         文档内所有数值均为判断起点，非承诺；标注 <span class="pill todo">待确认</span> 者未获用户表态。
       </p>
 
