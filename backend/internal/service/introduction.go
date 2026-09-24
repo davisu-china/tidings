@@ -461,7 +461,6 @@ func toSubject(r repo.CandidateRow) Subject {
 		HeightCM:       r.HeightCM,
 		EducationLevel: r.EduLevel,
 		IncomeBand:     r.IncomeBand,
-		Chronotype:     r.Chronotype,
 		Smoking:        r.Smoking,
 		Drinking:       r.Drinking,
 		WantChild:      r.WantChild,
@@ -544,7 +543,7 @@ type IntroView struct {
 // IntroPerson 是引荐卡上的那个人。
 //
 // 这里是一个白名单，不是 profiles 的一行：给出去多少字段是产品决策。
-// 学校名、公司、体重、作息这几项在卡上不出现（§19.2 只画了
+// 学校名、公司、体重、吸烟饮酒这几项在卡上不出现（§19.2 只画了
 // 昵称/出生年/城市/学历/身高/收入/自述），所以它们也不该出现在响应里 ——
 // 前端不显示不等于没泄露，抓包一样能看到。
 type IntroPerson struct {

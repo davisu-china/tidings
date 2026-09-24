@@ -14,8 +14,10 @@ func str(s string) *string { return &s }
 func num(i int) *int       { return &i }
 func i16(i int16) *int16   { return &i }
 
-// fullProfile 造一份九项必填齐全、选填全空的资料。
-// 它是完整度算法里 60 分的那个基准点。
+// fullProfile 造一份 20 项必填全部齐全的资料，完整度 100。
+//
+// v1.7 起没有「选填」这个类别了（作息删掉，其余 11 项转必填），所以这份
+// 档案就是唯一的标准件：任何一条必填校验的回归都从这里长出来。
 func fullProfile() model.Profile {
 	return model.Profile{
 		Nickname:       str("阿信"),
@@ -27,6 +29,18 @@ func fullProfile() model.Profile {
 		EducationLevel: i16(3),
 		SchoolName:     "复旦大学",
 		AvatarKey:      "u/1/abc.jpg",
+
+		HometownCode:  num(310000),
+		Occupation:    "产品经理",
+		Company:       "某互联网公司",
+		IncomeBand:    i16(4),
+		Smoking:       i16(0), // 0 = 不吸，是合法答案而不是「没填」
+		Drinking:      i16(1),
+		Hobbies:       "徒步、做饭",
+		Intro:         "周末多半在爬山。",
+		Expectation:   "想找一个愿意一起出门的人。",
+		WantChild:     i16(model.WantChildYes),
+		MaritalStatus: i16(model.MaritalSingle),
 	}
 }
 
@@ -36,7 +50,7 @@ func TestRequiredMissingCountsAvatar(t *testing.T) {
 		t.Fatalf("齐全的资料不该报缺失，得到 %v", got)
 	}
 
-	// 头像必须算在必填里：它是完整度公式里 7 项的分母之一（文档 §4.2）
+	// 头像必须算在必填里：它是完整度分母 20 项里的一项
 	p.AvatarKey = ""
 	got := requiredMissing(&p)
 	if len(got) != 1 || got[0] != "avatar_key" {
@@ -55,39 +69,31 @@ func TestRequiredMissingCountsAvatar(t *testing.T) {
 	}
 }
 
-// TestCompletenessMatchesDoc 钉住文档 §4.2 的公式：
-// filledRequired/9*60 + filledOptional/10*40，四舍五入取整。
-// 这个数字直接决定用户能不能被引荐，改动必须先改文档。
+// TestCompletenessMatchesDoc 钉住完整度公式：filled/20*100，四舍五入取整。
+//
+// 它现在只是一个惰性数值（没有调用点拿它做判断），但数字仍然是可观察的
+// 输出 —— 20 项的门槛一变，分母就要跟着变，这条测试是那个提醒。
 func TestCompletenessMatchesDoc(t *testing.T) {
 	cases := []struct {
 		name string
 		mut  func(*model.Profile)
 		want int
 	}{
-		{"必填齐全、选填全空", func(*model.Profile) {}, 60},
+		{"齐全", func(*model.Profile) {}, 100},
 		{"全空", func(p *model.Profile) { *p = model.Profile{} }, 0},
 		{
-			"必填缺一项", func(p *model.Profile) { p.HeightCM = nil },
-			53, // 8/9*60 = 53.33
+			"缺一项", func(p *model.Profile) { p.HeightCM = nil },
+			95, // 19/20
 		},
 		{
-			// 这里只设了 5 项选填：SchoolName 曾是选填，现在是必填，
-			// fullProfile 已经给过它，所以它不再贡献选填分。
-			"必填齐全 + 5 项选填", func(p *model.Profile) {
-				p.SchoolName, p.Occupation, p.Company = "A", "B", "C"
-				p.Intro, p.Expectation, p.Hobbies = "i", "e", "h"
+			"缺四项", func(p *model.Profile) {
+				p.HeightCM, p.Company, p.Intro, p.AvatarKey = nil, "", "", ""
 			},
-			80, // 60 + 5/10*40
+			80, // 16/20
 		},
 		{
-			"全部填满", func(p *model.Profile) {
-				p.HometownCode, p.WeightKG = num(310000), i16(65)
-				p.SchoolName, p.Occupation, p.Company = "A", "B", "C"
-				p.IncomeBand, p.Chronotype = i16(3), i16(1)
-				p.Smoking, p.Drinking = i16(0), i16(0)
-				p.Hobbies, p.Intro, p.Expectation = "h", "i", "e"
-			},
-			100,
+			// 「不吸烟」是一个答案，不是空值：0 必须算已填
+			"吸烟填 0 仍算已填", func(p *model.Profile) { p.Smoking = i16(0) }, 100,
 		},
 	}
 
@@ -97,6 +103,55 @@ func TestCompletenessMatchesDoc(t *testing.T) {
 			tc.mut(&p)
 			if got := completeness(&p); got != tc.want {
 				t.Fatalf("完整度 = %d，期望 %d", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestRequiredMissingCountsZeroAsAnswered 单列一条：吸烟/饮酒的 0 是
+// 「不」，把它当成未填会让**所有不吸烟的人**永远填不完第五步。
+func TestRequiredMissingCountsZeroAsAnswered(t *testing.T) {
+	p := fullProfile()
+	p.Smoking, p.Drinking = i16(0), i16(0)
+	if got := requiredMissing(&p); len(got) != 0 {
+		t.Fatalf("吸烟/饮酒填 0 应算已填，得到缺失 %v", got)
+	}
+
+	// 反过来，nil 才是没填
+	p.Smoking = nil
+	if got := requiredMissing(&p); len(got) != 1 || got[0] != "smoking" {
+		t.Fatalf("吸烟为 nil 时应报 smoking，得到 %v", got)
+	}
+}
+
+// TestSupplementFieldsAreRequired 钉住 v1.7 的这次加项：补充那 11 项
+// 逐一清空都必须报出来。写法是逐个清、逐个断言，而不是笼统地数个数 ——
+// 漏掉某一项时，只数个数的那版会静静地放行。
+func TestSupplementFieldsAreRequired(t *testing.T) {
+	clear := map[string]func(*model.Profile){
+		"hometown_code":  func(p *model.Profile) { p.HometownCode = nil },
+		"occupation":     func(p *model.Profile) { p.Occupation = "" },
+		"company":        func(p *model.Profile) { p.Company = "" },
+		"income_band":    func(p *model.Profile) { p.IncomeBand = nil },
+		"smoking":        func(p *model.Profile) { p.Smoking = nil },
+		"drinking":       func(p *model.Profile) { p.Drinking = nil },
+		"hobbies":        func(p *model.Profile) { p.Hobbies = "" },
+		"intro":          func(p *model.Profile) { p.Intro = "" },
+		"expectation":    func(p *model.Profile) { p.Expectation = "" },
+		"want_child":     func(p *model.Profile) { p.WantChild = nil },
+		"marital_status": func(p *model.Profile) { p.MaritalStatus = nil },
+	}
+
+	for name, mut := range clear {
+		t.Run(name, func(t *testing.T) {
+			p := fullProfile()
+			mut(&p)
+			got := requiredMissing(&p)
+			if len(got) != 1 || got[0] != name {
+				t.Fatalf("清空 %s 后应只报它自己，得到 %v", name, got)
+			}
+			if c := completeness(&p); c != 95 {
+				t.Fatalf("缺一项时完整度应为 95，得到 %d", c)
 			}
 		})
 	}
@@ -125,8 +180,8 @@ func TestCompletenessIgnoresPhotos(t *testing.T) {
 	if got := admissionMissing(&p, 1); len(got) != 0 {
 		t.Fatalf("1 张照片就该放行，得到缺失 %v", got)
 	}
-	if base != 60 {
-		t.Fatalf("照片数不该影响完整度，基准应为 60，得到 %d", base)
+	if base != 100 {
+		t.Fatalf("照片数不该影响完整度，齐全档案应为 100，得到 %d", base)
 	}
 }
 
@@ -158,7 +213,6 @@ func TestApplyInputValidation(t *testing.T) {
 		{"体重过低", ProfileInput{WeightKG: i16(34)}, apierr.ErrBadRequest},
 		{"学历越界", ProfileInput{EducationLevel: i16(5)}, apierr.ErrBadRequest},
 		{"收入区间越界", ProfileInput{IncomeBand: i16(7)}, apierr.ErrBadRequest},
-		{"作息越界", ProfileInput{Chronotype: i16(4)}, apierr.ErrBadRequest},
 		{"吸烟越界", ProfileInput{Smoking: i16(3)}, apierr.ErrBadRequest},
 
 		{"院校 41 字", ProfileInput{SchoolName: &long41}, apierr.ErrBadRequest},
@@ -428,9 +482,12 @@ func TestApplyInputBirthDay(t *testing.T) {
 }
 
 // TestBirthDayOutOfScopeForAdmission 把两条红线写成可执行断言：
-// 「日」不进完整度、不进入池门槛。这不是洁癖 —— candidateSQL 里有 4 处
-// completeness >= 60，把日加进必填项会让卡在门槛上的老用户静默掉出候选集，
-// 且只有在他们下次保存时才重算。想改这两条，得先删掉这个测试。
+// 「日」不进完整度、不进入池门槛。
+//
+// 理由是它只影响展示（年龄始终按月算）。加进必填的代价则是实打实的：
+// requiredMissing 只在 status = onboarding 时判，但 completeness 是**存量列**，
+// 老档案下次保存时才重算 —— 加进去会让一批人静默掉出候选集。
+// 想改这两条，得先删掉这个测试。
 func TestBirthDayOutOfScopeForAdmission(t *testing.T) {
 	without := fullProfile()
 	with := fullProfile()

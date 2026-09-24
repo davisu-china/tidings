@@ -29,7 +29,6 @@ type CandidateRow struct {
 	// 下面这些是选填项，可能为 NULL
 	HometownCode *int       `gorm:"column:hometown_code"`
 	IncomeBand   *int16     `gorm:"column:income_band"`
-	Chronotype   *int16     `gorm:"column:chronotype"`
 	Smoking      *int16     `gorm:"column:smoking"`
 	Drinking     *int16     `gorm:"column:drinking"`
 	WantChild    *int16     `gorm:"column:want_child"`
@@ -76,7 +75,7 @@ type CandidateQuery struct {
 // 拼 SQL 用的全是编译期常量，没有任何外部输入参与，不存在注入面。
 const subjectCols = `
        p.user_id, p.gender, p.birth_ym, p.city_code, p.height_cm, p.education_level,
-       p.hometown_code, p.income_band, p.chronotype, p.smoking, p.drinking,
+       p.hometown_code, p.income_band, p.smoking, p.drinking,
        p.want_child, p.marital_status,
        u.last_active_at, u.created_at,
        pref.user_id IS NOT NULL   AS pref_exists,
@@ -110,9 +109,21 @@ LEFT JOIN preferences pref ON pref.user_id = p.user_id`
 //     原稿第二行写成 `? BETWEEN coalesce(pref...)`，比的还是他的偏好，
 //     我的偏好没有参与 —— 那会让「我只想找 30 岁以下」形同虚设。
 //
-// 另外 ORDER BY random() 与 LIMIT 的组合让每次生成拿到的候选组合都不同，
-// 避免同一批人反复互推。LIMIT 是硬上限：池子小的时候不生效，
-// 池子涨到万级时它是唯一阻止这条查询变慢的东西。
+// 排序从 random() 改成了最近活跃优先（v1.7）。原先那句注释说随机是为了
+// 「避免同一批人反复互推」，但真正防重复的是下面那条 introductions 的
+// NOT EXISTS —— 随机只是在防「总是同样几个人排在最前」。代价是它同时
+// 抹掉了「谁最近来过」这个信号：一个半年没登录的人和一个今天刚登录的人
+// 被抽中的概率一样。
+//
+// 现在按 u.last_active_at 倒序。NULLS LAST 是给存量数据兜底（这一列由
+// touchActive 在注册与登录时写，理论上 active 的人都有值）；再补一个
+// p.user_id 作 tiebreak，让同一批人的顺序是确定的 —— 排序里带 LIMIT 时
+// 不确定的 tiebreak 会让同一次生成的结果不可复现，排查起来很难受。
+//
+// 注意 activeScore 已经在打分里用了同一个信号（wActivity 0.10）。这里是
+// 两件事：那个决定「这个人排多前」，这个决定「这个人进不进这一批候选」。
+// LIMIT 是硬上限：池子小的时候不生效，池子涨到万级时它是唯一阻止这条
+// 查询变慢的东西。
 const candidateSQL = `
 SELECT ` + subjectCols + `
 ` + subjectFrom + `
@@ -120,7 +131,6 @@ WHERE u.status = 'active'
   AND p.user_id <> ?                      -- 不是我
   AND p.gender IS NOT NULL
   AND p.gender <> ?                       -- 异性，写死不做同性
-  AND p.completeness >= 60                -- 对方也得过引荐门槛
   AND p.city_code IS NOT NULL
   AND p.birth_ym IS NOT NULL
   -- 硬条件：他的年龄偏好要收得下我
@@ -164,7 +174,7 @@ WHERE u.status = 'active'
   )
   -- 同城或同省
   AND (p.city_code = ? OR (p.city_code / 10000) = (? / 10000))
-ORDER BY random()
+ORDER BY u.last_active_at DESC NULLS LAST, p.user_id ASC
 LIMIT ?`
 
 // FetchCandidates 召回候选集。所有条件都在这条 SQL 里，GO 侧只负责打分 ——
@@ -188,7 +198,7 @@ func (r *Repo) FetchCandidates(ctx context.Context, q CandidateQuery) ([]Candida
 	return rows, err
 }
 
-// PoolSize 数一个城市里有多少可用的人：已 active、过了引荐门槛、性别已知。
+// PoolSize 数一个城市里有多少可用的人：已 active、性别已知、城市已知。
 //
 // 不分性别，因为它衡量的是「这个城市的市场规模」——§12.4 的
 // 500 / 2000 两条线是按整个城市的活跃用户数定的策略档位，不是按
@@ -200,7 +210,6 @@ func (r *Repo) PoolSize(ctx context.Context, cityCode int) (int, error) {
 		Raw(`SELECT count(*) FROM profiles p
 		     JOIN users u ON u.id = p.user_id
 		     WHERE u.status = 'active'
-		       AND p.completeness >= 60
 		       AND p.gender IS NOT NULL
 		       AND p.city_code = ?`, cityCode).
 		Scan(&n).Error
@@ -219,7 +228,6 @@ func (r *Repo) ActiveCities(ctx context.Context) ([]int, error) {
 		     FROM profiles p
 		     JOIN users u ON u.id = p.user_id
 		     WHERE u.status = 'active'
-		       AND p.completeness >= 60
 		       AND p.gender IS NOT NULL
 		       AND p.city_code IS NOT NULL
 		     ORDER BY p.city_code`).
@@ -455,7 +463,6 @@ func (r *Repo) PickUsersForGeneration(ctx context.Context, cityCode int, limit i
 		    WHERE i.user_low = u.id OR i.user_high = u.id
 		) hist ON true
 		WHERE u.status = 'active'
-		  AND p.completeness >= 60
 		  AND p.city_code = ?
 		  AND NOT coalesce(s.intros_paused, false)
 		ORDER BY hist.last_at ASC NULLS FIRST, u.id ASC

@@ -37,11 +37,11 @@ func TestScoreBounds(t *testing.T) {
 	perfect := Subject{
 		CityCode: 310000, HometownCode: intPtr(310000),
 		HeightCM: i16(170), EducationLevel: i16(3), IncomeBand: i16(4),
-		Chronotype: i16(1), Smoking: i16(0), Drinking: i16(0),
+		Smoking: i16(0), Drinking: i16(0),
 		LastActiveAt: daysAgo(0), CreatedAt: testNow,
 		Pref: pref,
 	}
-	// 完全相同的两个人：三项软偏好互相满足、同城同乡、生活方式三项全同
+	// 完全相同的两个人：三项软偏好互相满足、同城同乡、生活方式两项全同
 	if got := Score(perfect, perfect, testNow); math.Abs(got-1.0) > 1e-9 {
 		t.Fatalf("完全合拍的两个人应该得 1.0，得到 %v", got)
 	}
@@ -49,12 +49,12 @@ func TestScoreBounds(t *testing.T) {
 	worst := Subject{
 		CityCode: 110000, HometownCode: intPtr(440000),
 		HeightCM: i16(150), EducationLevel: i16(1), IncomeBand: i16(1),
-		Chronotype: i16(3), Smoking: i16(2), Drinking: i16(2),
+		Smoking: i16(2), Drinking: i16(2),
 		LastActiveAt: daysAgo(365), CreatedAt: testNow,
 		Pref: &model.Preference{EduMin: i16(4), HeightMin: i16(180), IncomeMin: i16(6)},
 	}
 
-	// 四个因子全归零：软偏好两个方向都是 0/3、不同省不同乡、生活方式三项全不同。
+	// 四个因子全归零：软偏好两个方向都是 0/3、不同省不同乡、生活方式两项全不同。
 	// 剩下的 0.10 全部来自活跃度 —— 那是「对方」的活跃度，perfect 今天刚活跃过，
 	// 所以这 0.1 跟 worst 自己合不合拍无关，它拿定了。
 	// 断言到小数点后 9 位，是为了让「某个因子偷偷漏算」这种事立刻暴露。
@@ -159,21 +159,26 @@ func TestGeoAffinity(t *testing.T) {
 }
 
 // 生活方式：任一方未填的那一项不进分母。
+//
+// 维度从三项降到两项（000004 删了作息），所以这里钉的是两项下的三种情形。
+// 「不填反而拿满分」那个洞仍然存在于这条函数的实现里 —— 它现在靠
+// 「吸烟与饮酒是必填项」从数据侧堵住，不是靠改判分。真实档案里两项
+// 都不会为空，走到「都没得比」的只剩老数据和这条测试。
 func TestLifestyleAffinity(t *testing.T) {
-	// 三项全填且全同
-	full := Subject{Chronotype: i16(1), Smoking: i16(0), Drinking: i16(0)}
+	// 两项全填且全同
+	full := Subject{Smoking: i16(0), Drinking: i16(0)}
 	if got := lifestyleAffinity(full, full); got != 1.0 {
-		t.Errorf("三项全同应该 1.0，得到 %v", got)
+		t.Errorf("两项全同应该 1.0，得到 %v", got)
 	}
 
-	// 只有作息可比，且不同 → 0/1
-	onlyChronoA := Subject{Chronotype: i16(1)}
-	onlyChronoB := Subject{Chronotype: i16(2), Smoking: i16(0)}
-	if got := lifestyleAffinity(onlyChronoA, onlyChronoB); got != 0 {
-		t.Errorf("唯一可比的作息不同，应该 0，得到 %v", got)
+	// 只有吸烟可比，且不同 → 0/1（饮酒那侧 A 没填，不进分母）
+	onlySmokeA := Subject{Smoking: i16(0)}
+	onlySmokeB := Subject{Smoking: i16(2), Drinking: i16(0)}
+	if got := lifestyleAffinity(onlySmokeA, onlySmokeB); got != 0 {
+		t.Errorf("唯一可比的吸烟不同，应该 0，得到 %v", got)
 	}
 
-	// 三项都没得比 → 1.0（不因为没填而扣分）
+	// 两项都没得比 → 1.0（不因为没填而扣分）
 	if got := lifestyleAffinity(Subject{}, Subject{}); got != 1.0 {
 		t.Errorf("没有可比项应该 1.0，得到 %v", got)
 	}

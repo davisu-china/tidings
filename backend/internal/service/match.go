@@ -44,9 +44,6 @@ const (
 // 活跃度的时间常数（天）。
 const activityTau = 7.0
 
-// 生活方式相容的维度数：作息、吸烟、饮酒。
-const lifestyleDims = 3
-
 // Subject 是打分要用到的一方：档案 + 他自己声明的偏好。
 //
 // 刻意不用 model.Profile —— 候选集 SQL 只取打分需要的列，
@@ -61,7 +58,6 @@ type Subject struct {
 	HeightCM       *int16
 	EducationLevel *int16
 	IncomeBand     *int16
-	Chronotype     *int16
 	Smoking        *int16
 	Drinking       *int16
 
@@ -177,10 +173,16 @@ func sameHometown(a, b Subject) bool {
 	return a.HometownCode != nil && b.HometownCode != nil && *a.HometownCode == *b.HometownCode
 }
 
-// lifestyleAffinity 生活方式相容：作息、吸烟、饮酒三项里相同的比例。
+// lifestyleAffinity 生活方式相容：吸烟、饮酒两项里相同的比例。
 //
-// 任一方未填的那一项不计入分母。三项都没得比时返回 1.0 ——
+// 任一方未填的那一项不计入分母。两项都没得比时返回 1.0 ——
 // 与 matchRatio 的「没声明就满分」同一个立场：不因为没填而扣分。
+//
+// 作息（chronotype）曾是第三项，000004 迁移删掉了。删它的直接原因就是
+// 上面那条「未填不计入分母」：三项里只填两项的人按两项算，三项全不填的人
+// 直接拿满分 —— 如实填一项不如不填。这个洞现在由「吸烟与饮酒是必填项」
+// 补上（见 profile.go 的 requiredMissing），真实数据里两者都不再为空，
+// 「都没得比」这条分支只剩单元测试和理论上的老档案会走到。
 func lifestyleAffinity(a, b Subject) float64 {
 	same, comparable := 0, 0
 
@@ -193,7 +195,6 @@ func lifestyleAffinity(a, b Subject) float64 {
 			same++
 		}
 	}
-	compare(a.Chronotype, b.Chronotype)
 	compare(a.Smoking, b.Smoking)
 	compare(a.Drinking, b.Drinking)
 

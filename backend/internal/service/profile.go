@@ -52,12 +52,14 @@ type ProfileInput struct {
 	// 日子等于逼人编造。
 	BirthDay *int16 `json:"birth_day"`
 
-	// 选填 10 项
+	// 必填 9 项（建档「补充」那一步）。v1.7 起从选填转必填。
+	//
+	// 作息（chronotype）曾在这一块，000004 迁移把它删掉了：它只喂
+	// lifestyleAffinity，而那条规则对未填项不计入分母，等于奖励不填的人。
 	HometownCode *int    `json:"hometown_code"`
 	Occupation   *string `json:"occupation"`
 	Company      *string `json:"company"`
 	IncomeBand   *int16  `json:"income_band"`
-	Chronotype   *int16  `json:"chronotype"`
 	Smoking      *int16  `json:"smoking"`
 	Drinking     *int16  `json:"drinking"`
 	Hobbies      *string `json:"hobbies"` // 顿号分隔的字符串，≤6 个
@@ -66,9 +68,6 @@ type ProfileInput struct {
 
 	// 硬条件两项。它们是「我自己的情况」，与 preferences 侧的
 	// 「我要求对方怎样」是两回事，匹配时要把两边对着比。
-	//
-	// 不计入完整度：§4.2 的选填项是逐一列过的，这两项不在其中，
-	// 加进来会把所有人的完成度改掉，也会让那张清单失去意义。
 	//
 	// 异地接受度不在这里 —— 它属于偏好，走 /me/preferences。
 	WantChild     *int16 `json:"want_child"`
@@ -97,7 +96,6 @@ type ProfileView struct {
 	Occupation     string   `json:"occupation"`
 	Company        string   `json:"company"`
 	IncomeBand     *int16   `json:"income_band"`
-	Chronotype     *int16   `json:"chronotype"`
 	Smoking        *int16   `json:"smoking"`
 	Drinking       *int16   `json:"drinking"`
 	Hobbies        []string `json:"hobbies"`
@@ -178,12 +176,16 @@ func (s *Service) UpdateProfile(ctx context.Context, user *model.User, in *Profi
 // applyProfileState 重算完整度，并在入池条件齐备时把 status 翻成 active。
 //
 // 两件事必须在一起做，而且必须被资料接口和媒体接口共用：
-// 入池条件 = 8 项必填 + 头像 + ≥1 张照片，其中头像和照片不是资料接口设的。
+// 入池条件 = 20 项必填 + ≥1 张照片，其中头像和照片不是资料接口设的。
 // 只在 UpdateProfile 里判翻牌的话，「先填资料、再传头像和照片」这条
 // 最自然的路径永远翻不了牌 —— 用户明明什么都填完了，还是卡在建档流程里。
 //
 // 门槛只在 status = onboarding 时判。往后再加必填项，已经入池的人不会被
 // 踢回来 —— 那会连同他们已有的引荐和会话一起失效。新门槛只拦新档案。
+//
+// v1.7 那次加项把这条规矩用到了极致：20 项的新门槛，线上 125 个 active
+// 账号里一个都过不了（期望与公司几乎全空）。如果门槛回溯生效，候选池
+// 当场归零、引荐停摆。所以它对新档案生效、对老账号只是一条补全提示。
 //
 // 调用方传 photoCount 是为了避免重复 COUNT；p 必须是已经落库的那一行。
 func (s *Service) applyProfileState(ctx context.Context, user *model.User, p *model.Profile, photoCount int) {
@@ -349,12 +351,6 @@ func applyInput(p *model.Profile, in *ProfileInput) error {
 		}
 		p.IncomeBand = in.IncomeBand
 	}
-	if in.Chronotype != nil {
-		if *in.Chronotype < 1 || *in.Chronotype > 3 {
-			return apierr.ErrBadRequest.WithMessage("作息取值不正确")
-		}
-		p.Chronotype = in.Chronotype
-	}
 	if in.Smoking != nil {
 		if *in.Smoking < 0 || *in.Smoking > 2 {
 			return apierr.ErrBadRequest.WithMessage("吸烟取值不正确")
@@ -510,15 +506,25 @@ func daysInMonth(year, month int) int {
 	}
 }
 
-// requiredMissing 是入池门槛里 profiles 表能表达的那部分：必填 8 项 + 头像。
+// requiredMissing 是入池门槛里 profiles 表能表达的那部分：20 项必填。
 // 照片数不入这张单子，因为它不在 profiles 里。
 //
-// 一共 9 项，也是完整度算法里 required 的基数（见 §4.2）。
+// 这 20 项分三批长起来，每一批的理由都是同一个：**这条门槛决定谁进池子，
+// 而池子里的空字段会变成别人的一次浪费的期待。**
 //
-// 体重与毕业院校是后加的（原为必填 6 项 + 头像）。它们和身高、学历是同一类
-// 东西：身高体重是一组外形上的硬条件，学历院校是一组教育背景上的硬条件，
-// 只问一半会让「硬条件过滤」在池子里留下半张档案。代价是门槛变高、
-// 完整度公式的分母跟着变（见 completeness），两处必须一起改。
+//   - 8 个标量 + 头像是最早的 9 项；
+//   - 体重与毕业院校是第二批。它们和身高、学历是同一类东西：身高体重是一组
+//     外形上的硬条件，学历院校是一组教育背景上的硬条件，只问一半会让
+//     「硬条件过滤」在池子里留下半张档案；
+//   - 「补充」那 11 项是 v1.7 从选填转过来的。转的原因不是洁癖，是数据：
+//     125 个 active 账号里公司 124 个空、期望 125 个空 —— 选填的字段
+//     就是没人填的字段。而其中婚育意愿与婚史还多一层：匹配时 NULL 是按
+//     「不限」处理的（见 PassesHardConditions），用户以为自己没表态，
+//     系统已经替他说了「都行」，这会让他收到本该被过滤掉的人。
+//
+// **加项只在 status = onboarding 时判**（见 applyProfileState）：已经入池的
+// 人不会被踢回来，否则每次加必填都会让存量用户的引荐与会话一起失效。
+// 这个基数也是 completeness 的分母，两处必须一起改。
 func requiredMissing(p *model.Profile) []string {
 	// 返回空切片而不是 nil：JSON 里是 []，前端 .length 不会炸，
 	// 也不必在每处调用点写 ?? []
@@ -537,14 +543,24 @@ func requiredMissing(p *model.Profile) []string {
 	add(p.EducationLevel == nil, "education_level")
 	add(p.SchoolName == "", "school_name")
 	add(p.AvatarKey == "", "avatar_key")
+
+	// 枚举类一律判 nil，绝不判 0：smoking / drinking 的 0 是「不」，
+	// 是一个用户认真给出的答案，把它当成未填会让人永远填不完。
+	add(p.HometownCode == nil, "hometown_code")
+	add(p.Occupation == "", "occupation")
+	add(p.Company == "", "company")
+	add(p.IncomeBand == nil, "income_band")
+	add(p.Smoking == nil, "smoking")
+	add(p.Drinking == nil, "drinking")
+	add(p.Hobbies == "", "hobbies")
+	add(p.Intro == "", "intro")
+	add(p.Expectation == "", "expectation")
+	add(p.WantChild == nil, "want_child")
+	add(p.MaritalStatus == nil, "marital_status")
 	return missing
 }
 
-// admissionMissing 是翻 status = active 的全部条件：9 项必填再加照片数。
-//
-// 与完整度分开：照片不参与 60/40 的完整度计算（§4.2），
-// 但它是入池的必要条件。两件事混在一起会让「完整度」这个数字
-// 既表示进度又表示门槛，前端没法用它。
+// admissionMissing 是翻 status = active 的全部条件：20 项必填再加照片数。
 func admissionMissing(p *model.Profile, photoCount int) []string {
 	missing := requiredMissing(p)
 	if photoCount < minPhotosForActive {
@@ -553,33 +569,25 @@ func admissionMissing(p *model.Profile, photoCount int) []string {
 	return missing
 }
 
-// completeness 算 0..100 的资料完整度。不参与匹配打分，只做「可被引荐」的门槛。
-// 必填占 60 分，选填占 40 分 —— 选填给足权重，是为了让用户有动力补。
+// completeness 算 0..100 的资料完整度。
 //
-// 刻意不收照片数：照片不属于 profiles 表，也不该影响这个数字
-// （见 admissionMissing 的说明）。算法是文档 §4.2 的原样实现。
+// **它既不是门槛，也不参与排序**（v1.7 起）。留着一个没有任何一处读它做
+// 判断的数字，看上去像该删掉，但删除的代价比留着大：它是 profiles 上的一个
+// 存量列，删了要再来一条迁移，而「资料填到什么程度」对运营侧仍然是个
+// 有用的读数。所以它降级成惰性数值 —— 照常算、照常回传，没有任何调用点
+// 拿它做判断。
+//
+// 在这之前它是「引荐门槛」，那个门槛从来没生效过：旧公式
+// 「必填/9*60 + 选填/10*40」在「必填齐全、选填全空」时正好 60 分，
+// 而入池本来就要求必填全齐 —— 也就是 active 的人必定 ≥ 60，四处
+// `WHERE p.completeness >= 60` 全是死条件。既然 20 项现在都是必填，
+// 选填那 40 分连分母都没有了，公式顺势简化成「填了几项就是百分之几」。
+//
+// 刻意不收照片数：照片不属于 profiles 表（见 admissionMissing）。
 func completeness(p *model.Profile) int {
-	const totalRequired = 9 // 8 个标量 + 头像
-	filledRequired := totalRequired - len(requiredMissing(p))
-
-	// 体重与毕业院校挪去了 requiredMissing，所以不再在这里出现；
-	// 选填因此从 12 项降到 10 项。分母两边一起变，60/40 的比例不变。
-	optional := []bool{
-		p.HometownCode != nil,
-		p.Occupation != "", p.Company != "", p.IncomeBand != nil,
-		p.Chronotype != nil, p.Smoking != nil, p.Drinking != nil,
-		p.Hobbies != "", p.Intro != "", p.Expectation != "",
-	}
-	filledOptional := 0
-	for _, ok := range optional {
-		if ok {
-			filledOptional++
-		}
-	}
-
-	score := float64(filledRequired)/float64(totalRequired)*60 +
-		float64(filledOptional)/float64(len(optional))*40
-	return int(score + 0.5)
+	const totalRequired = 20 // requiredMissing 的项数，两处必须一起改
+	filled := totalRequired - len(requiredMissing(p))
+	return int(float64(filled)/float64(totalRequired)*100 + 0.5)
 }
 
 func (s *Service) buildView(user *model.User, p *model.Profile, photoCount int) *ProfileView {
@@ -602,7 +610,6 @@ func (s *Service) buildView(user *model.User, p *model.Profile, photoCount int) 
 		Occupation:     p.Occupation,
 		Company:        p.Company,
 		IncomeBand:     p.IncomeBand,
-		Chronotype:     p.Chronotype,
 		Smoking:        p.Smoking,
 		Drinking:       p.Drinking,
 		Hobbies:        splitTags(p.Hobbies),

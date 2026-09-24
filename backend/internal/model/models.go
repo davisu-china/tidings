@@ -89,19 +89,22 @@ type Profile struct {
 	// 静默掉出池子。它只用来在自己的资料页上把生日显示完整。
 	BirthDay *int16 `gorm:"column:birth_day"`
 
-	// 选填 10 项
+	// 必填 9 项（建档「补充」那一步）。原来是选填，转必填是有意的：
+	// 125 个 active 账号里 124 个公司为空、125 个期望为空 —— 选填的字段
+	// 就是没人填的字段，而这几项正是让别人敢开口的依据。
+	//
+	// SchoolTier 混在这一块里但不是用户字段：它仅由服务端按院校库归一，
+	// 不接受前端传值（M2 接 schools 包），也不进 requiredMissing。
 	HometownCode *int
-	// SchoolTier 仅由服务端按院校库归一，不接受前端传值（M2 接 schools 包）
-	SchoolTier  *int16
-	Occupation  string `gorm:"not null;default:''"`
-	Company     string `gorm:"not null;default:''"`
-	IncomeBand  *int16
-	Chronotype  *int16 // 1 早睡早起 / 2 夜猫子 / 3 不规律
-	Smoking     *int16 // 0 不 / 1 偶尔 / 2 经常
-	Drinking    *int16
-	Hobbies     string `gorm:"not null;default:''"` // 顿号分隔，≤6 个
-	Intro       string `gorm:"not null;default:''"`
-	Expectation string `gorm:"not null;default:''"`
+	SchoolTier   *int16
+	Occupation   string `gorm:"not null;default:''"`
+	Company      string `gorm:"not null;default:''"`
+	IncomeBand   *int16
+	Smoking      *int16 // 0 不 / 1 偶尔 / 2 经常
+	Drinking     *int16
+	Hobbies      string `gorm:"not null;default:''"` // 顿号分隔，≤6 个
+	Intro        string `gorm:"not null;default:''"`
+	Expectation  string `gorm:"not null;default:''"`
 
 	// 硬条件两项（000002 迁移补的）。它们是「我自己是什么情况」，
 	// 与 preferences 侧的同名/对应列（「我要求对方怎样」）是两回事，
@@ -109,11 +112,20 @@ type Profile struct {
 	//
 	// 这里没有 accept_remote：异地接受度是对关系形态的要求，
 	// 已经存在 preferences.accept_remote，不重复存。
+	//
+	// 它们同时也是必填（v1.7 起）。这两个字段决定「谁不会被推给谁」，
+	// 空着等于给对方一个「不限」的假象 —— 而匹配时 NULL 恰恰是按「不限」
+	// 处理的，用户以为自己没表态，系统已经替他说了「都行」。
 	WantChild     *int16
 	MaritalStatus *int16 // 1 未婚 / 2 离异
 
+	// Chronotype（作息）曾经在这里，000004 迁移删掉了。它只喂
+	// lifestyleAffinity，而那条规则对未填项不计分母，导致不填反而拿满分。
+	// 详见那个迁移的说明。
+
 	AvatarKey string `gorm:"not null;default:''"`
-	// Completeness 0..100。不参与匹配打分，只做「可被引荐」的门槛。
+	// Completeness 0..100。**既不是门槛也不参与排序**（v1.7 起），只是一份
+	// 惰性数值：算法见 service/profile.go 的 completeness 函数。
 	Completeness int16 `gorm:"not null;default:0"`
 
 	// 内容审核：文本签名比对命中才标记待审核；被拒时从快照恢复。
