@@ -1,0 +1,16 @@
+-- 按依赖倒序删除
+DROP TABLE IF EXISTS user_settings;
+DROP TABLE IF EXISTS job_runs;
+DROP TABLE IF EXISTS admin_actions;
+DROP TABLE IF EXISTS reports;
+DROP TABLE IF EXISTS blocks;
+DROP TABLE IF EXISTS match_reads;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS outbox;
+DROP TABLE IF EXISTS push_subscriptions;
+DROP TABLE IF EXISTS introductions;
+DROP TABLE IF EXISTS preferences;
+DROP TABLE IF EXISTS photos;
+DROP TABLE IF EXISTS profiles;
+DROP TABLE IF EXISTS users;
