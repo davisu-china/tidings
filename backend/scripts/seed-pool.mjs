@@ -5,6 +5,9 @@
  * → 偏好。这样这批账号的 status 是被产品自己的判定翻成 active 的，
  * 「能被引荐」这件事就不是脚本替它声明的。
  *
+ * 入池门槛只要 1 张（profile.go 的 minPhotosForActive），这里仍然传 3 张：
+ * 一是让池子里的卡片有得看，二是让排序那条链路也有真实数据流过。
+ *
  * 为什么值得做成脚本而不是手工点：验收标准是「造 20 个测试账号」，
  * 而手工点 20 遍必然会漏掉某一步（多半是第 3 张照片），
  * 然后拿到一个「一个引荐都没生成」的结果，还以为是匹配引擎坏了。
@@ -14,6 +17,14 @@
  *   SEED_BASE   默认 http://localhost:8081
  *   SEED_CITY   默认 110000（北京）
  *   SEED_PREFIX 邮箱前缀，默认 pool
+ *   SEED_OFFSET 起始序号，默认 0
+ *
+ * SEED_OFFSET 是给「分批种」用的：单 IP 每日注册上限是 10 个
+ * （maxRegistersPerIPPerDay，见 service/auth.go），种 120 个人得分 12 批，
+ * 每批之间清一次限流键。而档案是按序号 i 生成的，每批都从 0 开始的话，
+ * 12 批会种出 12 组一模一样的昵称与生日 —— 池子看起来像同一批复制品。
+ * email 里带时间戳，本来就不会撞，所以这只是为了档案的多样性。
+ * 批次之间用 10 的整数倍（0/10/20…），男女各半才不会被切歪。
  *
  * 头像用后端自带的人脸 fixture，相册由它缩放而来（macOS 的 sips）——
  * 人脸检测是入池的硬条件，随便找张图会被 pigo 挡下来。
@@ -29,6 +40,7 @@ const REPO = resolve(HERE, '../..')
 const BASE = process.env.SEED_BASE ?? 'http://localhost:8081'
 const CITY = Number(process.env.SEED_CITY ?? 110000)
 const PREFIX = process.env.SEED_PREFIX ?? 'pool'
+const OFFSET = Number(process.env.SEED_OFFSET ?? 0)
 const COUNT = Number(process.argv[2] ?? 20)
 
 const OUT = '/tmp/tidings-seed'
@@ -105,6 +117,10 @@ function profileFor(i) {
     gender: male ? 'M' : 'F',
     // 1990–1999，同龄区间，避免年龄偏好把人对掉
     birth_ym: 199000 + (i % 10) * 100 + ((i * 7) % 12) + 1,
+    // 出生日 1–28：任何一个月的天数都不少于 28，所以不必跟着月份算。
+    // 池子里有「日」的数据是有用的 —— 它让 birth_day 这条新列在真实
+    // 链路上被走一遍，而不是只在单测里存在。
+    birth_day: (i % 28) + 1,
     city_code: CITY,
     height_cm: male ? 170 + (i % 12) : 158 + (i % 12),
     education_level: (i % 4) + 1,
@@ -167,8 +183,8 @@ async function createOne(i, stamp) {
 
   await api('/me/preferences', { method: 'PUT', token, body: preferenceFor() })
 
-  // status 是后端在最后一张照片落库时翻的（applyProfileState / syncAfterMedia）。
-  // 这里回读一次确认，而不是假设它翻了 —— 假设错了，
+  // status 是后端在**第 1 张**照片落库时翻的（applyProfileState / syncAfterMedia，
+  // 门槛是 1 张）。这里回读一次确认，而不是假设它翻了 —— 假设错了，
   // 后果是整池人都进不了候选集，而症状看起来像匹配引擎没跑。
   const me = await api('/me', { token })
   if (me.status !== 'active') {
@@ -178,17 +194,17 @@ async function createOne(i, stamp) {
 }
 
 const stamp = Date.now().toString(36)
-console.log(`造 ${COUNT} 个账号 → ${BASE}，城市 ${CITY}`)
+console.log(`造 ${COUNT} 个账号 → ${BASE}，城市 ${CITY}${OFFSET ? `，序号从 ${OFFSET} 起` : ''}`)
 
 const created = []
 let failed = 0
-for (let i = 0; i < COUNT; i++) {
+for (let i = OFFSET; i < OFFSET + COUNT; i++) {
   try {
     created.push(await createOne(i, stamp))
     process.stdout.write(`\r  ${created.length}/${COUNT}`)
   } catch (e) {
     failed++
-    console.log(`\n  ✗ 第 ${i} 个失败：${e.message}`)
+    console.log(`\n  ✗ 序号 ${i} 失败：${e.message}`)
   }
   // 不打太急：注册走的是 bcrypt cost 12，图片要跑人脸检测和三档派生图
   await sleep(60)

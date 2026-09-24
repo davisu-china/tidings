@@ -79,6 +79,14 @@ type Profile struct {
 	HeightCM       *int16 `gorm:"column:height_cm"`
 	EducationLevel *int16
 
+	// BirthDay 是出生日（1–31），000003 迁移补的。NULL = 只知道年月。
+	//
+	// 它与别的必填项不一样：**不进 requiredMissing、不进完整度、不进
+	// 引荐对象那侧的下发**。年龄始终按月算（见 ageFromBirthYM），日对
+	// 匹配毫无用处；而 completeness 决定能不能进候选集，动它会让老用户
+	// 静默掉出池子。它只用来在自己的资料页上把生日显示完整。
+	BirthDay *int16 `gorm:"column:birth_day"`
+
 	// 选填 12 项
 	HometownCode *int
 	WeightKG     *int16 `gorm:"column:weight_kg"`
@@ -124,7 +132,7 @@ func (Profile) TableName() string { return "profiles" }
 // Photo 引荐卡上的照片。position = 0 即封面，不另设 is_main。
 //
 // ReviewState 只记录人工巡检进度，不是展示的前置条件：
-// 图片上传即生效，不阻塞登录与匹配。这与入池门槛（≥3 张）是两件事。
+// 图片上传即生效，不阻塞登录与匹配。这与入池门槛（≥1 张）是两件事。
 type Photo struct {
 	ID          int64 `gorm:"primaryKey"`
 	UserID      int64 `gorm:"not null;index"`

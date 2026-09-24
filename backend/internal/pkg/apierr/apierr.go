@@ -84,6 +84,8 @@ var (
 	// 而截图、微信另存出来的图有相当一部分就是 PNG。
 	ErrUploadBadType = New(http.StatusUnsupportedMediaType, "UPLOAD_BAD_TYPE", "只支持 JPEG 和 PNG 图片")
 	ErrPhotoLimit    = New(http.StatusBadRequest, "PHOTO_LIMIT", "照片数量已达上限")
+	// 最后一张不给删。消息里带上出路 —— 只说「不能删」会让人卡在这儿。
+	ErrLastPhoto = New(http.StatusBadRequest, "LAST_PHOTO", "至少留一张照片。先传新的，再删这张")
 )
 
 // 引荐

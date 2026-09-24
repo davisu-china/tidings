@@ -111,6 +111,16 @@ func TestCompletenessIgnoresPhotos(t *testing.T) {
 	if got := admissionMissing(&p, minPhotosForActive); len(got) != 0 {
 		t.Fatalf("照片够数且必填齐全时不该有缺失，得到 %v", got)
 	}
+
+	// 门槛就是 1 张，两侧都要钉住：只写下界（0 张报缺）的话，
+	// 有人把 minPhotosForActive 调回 3 也不会有测试响。这个数字直接
+	// 决定用户建档时要在照片页停多久，改动必须先改文档 §4.2。
+	if minPhotosForActive != 1 {
+		t.Fatalf("入池只要求 1 张照片，minPhotosForActive 应为 1，得到 %d", minPhotosForActive)
+	}
+	if got := admissionMissing(&p, 1); len(got) != 0 {
+		t.Fatalf("1 张照片就该放行，得到缺失 %v", got)
+	}
 	if base != 60 {
 		t.Fatalf("照片数不该影响完整度，基准应为 60，得到 %d", base)
 	}
@@ -281,15 +291,157 @@ func TestAgeFromBirthYM(t *testing.T) {
 }
 
 func TestValidCityCode(t *testing.T) {
-	for _, ok := range []int{110000, 310000, 440300, 659999} {
+	// 710000/810000/820000 是港澳台：建档页的省市联动把它们也列进去了，
+	// 而它们在民政部数据里只有省级一条、码落在旧上界之外。放进来是为了
+	// 钉住「选香港不会被静默拒掉」这件事 —— 这个错只会在港澳台用户身上
+	// 出现，池子里永远碰不到。
+	for _, ok := range []int{110000, 310000, 440300, 659999, 710000, 810000, 820000} {
 		if !validCityCode(ok) {
 			t.Fatalf("%d 应是合法城市码", ok)
 		}
 	}
-	for _, bad := range []int{0, 109999, 660000, 999999} {
+	for _, bad := range []int{0, 109999, 830000, 999999} {
 		if validCityCode(bad) {
 			t.Fatalf("%d 应是非法城市码", bad)
 		}
+	}
+}
+
+func TestDaysInMonth(t *testing.T) {
+	cases := []struct {
+		year, month, want int
+	}{
+		{1995, 1, 31}, {1995, 4, 30}, {1995, 2, 28},
+		{1996, 2, 29}, // 普通闰年
+		{2000, 2, 29}, // 四百年再闰
+		{1900, 2, 28}, // 百年不闰
+	}
+	for _, tc := range cases {
+		if got := daysInMonth(tc.year, tc.month); got != tc.want {
+			t.Errorf("daysInMonth(%d, %d) = %d，期望 %d", tc.year, tc.month, got, tc.want)
+		}
+	}
+}
+
+// TestValidDay 钉住「日必须真实存在」：2 月 29 只在闰年合法，
+// 4 月没有 31 日。DB 侧还有 p_birth_day_chk 兜底，两边要一致。
+func TestValidDay(t *testing.T) {
+	ok := []struct {
+		ym  int
+		day int16
+	}{
+		{199508, 31}, {199501, 31}, {199509, 30},
+		{199602, 29}, {200002, 29}, {199502, 28},
+	}
+	for _, tc := range ok {
+		if !validDay(tc.ym, tc.day) {
+			t.Errorf("%d 年的 %d 日应当是合法的", tc.ym, tc.day)
+		}
+	}
+
+	bad := []struct {
+		ym  int
+		day int16
+	}{
+		{199502, 29}, // 平年没有 2 月 29
+		{190002, 29}, // 百年不闰
+		{199504, 31}, // 4 月没有 31 日
+		{199509, 31},
+		{199508, 0}, {199508, 32}, {199508, -1},
+		{199513, 1}, // 年月本身非法
+	}
+	for _, tc := range bad {
+		if validDay(tc.ym, tc.day) {
+			t.Errorf("%d 年的 %d 日应当是非法的", tc.ym, tc.day)
+		}
+	}
+}
+
+// TestApplyInputBirthDay 是这次三级联动改造的核心回归：
+// 「日」与「年月」是一对，年月换了之后旧的日子可能不再存在。
+func TestApplyInputBirthDay(t *testing.T) {
+	t.Run("合法的一天存得进去", func(t *testing.T) {
+		p := fullProfile()
+		if err := applyInput(&p, &ProfileInput{BirthDay: i16(20)}); err != nil {
+			t.Fatalf("不该报错: %v", err)
+		}
+		if p.BirthDay == nil || *p.BirthDay != 20 {
+			t.Fatalf("BirthDay = %v，期望 20", p.BirthDay)
+		}
+	})
+
+	t.Run("越界与不存在的日子被拒", func(t *testing.T) {
+		for _, d := range []int16{0, 32, -1} {
+			p := fullProfile() // 199505
+			if err := applyInput(&p, &ProfileInput{BirthDay: i16(d)}); err == nil {
+				t.Errorf("day = %d 应被拒", d)
+			}
+		}
+		// 1995 是平年，2 月 29 不存在
+		p := fullProfile()
+		if err := applyInput(&p, &ProfileInput{BirthYM: num(199502), BirthDay: i16(29)}); err == nil {
+			t.Error("1995-02-29 应被拒")
+		}
+		// 1996 是闰年，同一天应当放行
+		p = fullProfile()
+		if err := applyInput(&p, &ProfileInput{BirthYM: num(199602), BirthDay: i16(29)}); err != nil {
+			t.Errorf("1996-02-29 应当放行，得到 %v", err)
+		}
+	})
+
+	t.Run("没有年月时不能单独提交日", func(t *testing.T) {
+		p := fullProfile()
+		p.BirthYM = nil
+		err := applyInput(&p, &ProfileInput{BirthDay: i16(20)})
+		if err == nil {
+			t.Fatal("库里没有出生年月时，单独提交日应被拒")
+		}
+	})
+
+	// 这一条挡住 1995-02-31 进库：前端表达不了「清空」（ProfileInput 全是
+	// 指针，null 与缺失都解成 nil），所以清值只能落在服务端。
+	t.Run("换年月后失效的日被清空", func(t *testing.T) {
+		p := fullProfile()
+		p.BirthYM, p.BirthDay = num(199501), i16(31) // 1 月 31 日
+		if err := applyInput(&p, &ProfileInput{BirthYM: num(199502)}); err != nil {
+			t.Fatalf("不该报错: %v", err)
+		}
+		if p.BirthDay != nil {
+			t.Fatalf("2 月里没有 31 日，BirthDay 应被清空，得到 %v", *p.BirthDay)
+		}
+	})
+
+	t.Run("换年月后仍然成立的日保留", func(t *testing.T) {
+		p := fullProfile()
+		p.BirthYM, p.BirthDay = num(199501), i16(31) // 1 月 31 日
+		if err := applyInput(&p, &ProfileInput{BirthYM: num(199503)}); err != nil {
+			t.Fatalf("不该报错: %v", err)
+		}
+		if p.BirthDay == nil || *p.BirthDay != 31 {
+			t.Fatalf("3 月也有 31 日，不该清空，得到 %v", p.BirthDay)
+		}
+	})
+}
+
+// TestBirthDayOutOfScopeForAdmission 把两条红线写成可执行断言：
+// 「日」不进完整度、不进入池门槛。这不是洁癖 —— candidateSQL 里有 4 处
+// completeness >= 60，把日加进必填项会让卡在门槛上的老用户静默掉出候选集，
+// 且只有在他们下次保存时才重算。想改这两条，得先删掉这个测试。
+func TestBirthDayOutOfScopeForAdmission(t *testing.T) {
+	without := fullProfile()
+	with := fullProfile()
+	with.BirthDay = i16(20)
+
+	if c1, c2 := completeness(&without), completeness(&with); c1 != c2 {
+		t.Fatalf("完整度不该受「日」影响：%d vs %d", c1, c2)
+	}
+	if m1, m2 := requiredMissing(&without), requiredMissing(&with); len(m1) != len(m2) {
+		t.Fatalf("缺失项不该受「日」影响：%v vs %v", m1, m2)
+	}
+
+	// 只知道年月的档案（老数据）必须是齐的，否则老用户会被判成没建完档
+	if got := requiredMissing(&without); len(got) != 0 {
+		t.Fatalf("只缺「日」不算缺必填，得到 %v", got)
 	}
 }
 

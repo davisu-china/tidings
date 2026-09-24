@@ -97,6 +97,10 @@ func (h *Handler) Router(env string) *gin.Engine {
 		me.GET("/me/profile", h.GetProfile)
 		me.PATCH("/me/profile", h.UpdateProfile)
 
+		// 院校库的联想查询。建档第二步就要用，那时用户已登录但还没入池，
+		// 所以放在这一组而不是 active 那组。
+		me.GET("/schools", h.SearchSchools)
+
 		me.POST("/media/upload-url", h.CreateUploadURL)
 		me.PUT("/me/avatar", h.SetAvatar)
 		me.GET("/me/photos", h.ListPhotos)

@@ -186,7 +186,7 @@ func (s *Service) AddPhoto(ctx context.Context, user *model.User, objectKey stri
 		return nil, apierr.ErrInternal
 	}
 
-	// 照片数够 3 张可能刚好凑齐入池条件
+	// 第 1 张落库就可能凑齐入池条件（门槛是 1 张）
 	s.syncAfterMedia(ctx, user)
 	return s.toPhotoView(&photo), nil
 }
@@ -273,6 +273,24 @@ func (s *Service) DeletePhoto(ctx context.Context, user *model.User, photoID int
 	}
 
 	err := s.Repo.Tx(func(tx *gorm.DB) error {
+		// 最后一张不给删。
+		//
+		// 入池门槛是 1 张，所以「只有 1 张」是这个产品的典型形态，不是边角。
+		// 而删照片**不会**把 status 退回 onboarding（见下面 syncAfterMedia 的
+		// 说明，那是有意的），于是一个手滑就能造出「在池子里、但没有封面」的
+		// 用户 —— 别人收件箱里那张卡会退化成没有照片的信。
+		//
+		// 事前拦住比事后退让便宜得多：换照片的路径是「先传新的，再删旧的」，
+		// 新照片会自然顶上封面（AddPhoto 取最小空位，删除又把 position 前移）。
+		// 从 2 张减到 1 张是合法的，所以判的是 <= 1 而不是 < minPhotosForActive。
+		var count int64
+		if err := tx.Model(&model.Photo{}).Where("user_id = ?", user.ID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count <= 1 {
+			return apierr.ErrLastPhoto
+		}
+
 		if err := tx.Delete(&model.Photo{}, photo.ID).Error; err != nil {
 			return err
 		}
@@ -283,6 +301,10 @@ func (s *Service) DeletePhoto(ctx context.Context, user *model.User, photoID int
 			Update("position", gorm.Expr("position - 1")).Error
 	})
 	if err != nil {
+		var apiErr *apierr.Error
+		if errors.As(err, &apiErr) {
+			return apiErr
+		}
 		s.Log.Error("删除照片失败", "err", err, "uid", user.ID)
 		return apierr.ErrInternal
 	}
@@ -292,9 +314,10 @@ func (s *Service) DeletePhoto(ctx context.Context, user *model.User, photoID int
 		s.Log.Warn("清理照片对象失败", "err", err, "key", photo.ObjectKey)
 	}
 
-	// 掉到 3 张以下会把用户踢出可被引荐状态。
-	// 注意：这里不把 status 改回 onboarding —— 用户已经入池过，
-	// 已经建立的引荐不该因为他删了张照片就失效。
+	// 这里不会把 status 改回 onboarding —— 用户已经入池过，已经建立的引荐
+	// 不该因为他删了张照片就失效（applyProfileState 对非 onboarding 直接
+	// return）。所以「掉到 0 张」这件事必须由上面那道 count <= 1 拦住，
+	// 而不是指望这里退回建档流程。
 	s.syncAfterMedia(ctx, user)
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/davisu-china/tidings/backend/internal/model"
 	"github.com/davisu-china/tidings/backend/internal/pkg/apierr"
+	"github.com/davisu-china/tidings/backend/internal/pkg/schools"
 	"github.com/davisu-china/tidings/backend/internal/pkg/storage"
 )
 
@@ -24,7 +25,12 @@ const (
 )
 
 // 入池要求的最少照片数（见 §4.2「照片另算」）。
-const minPhotosForActive = 3
+//
+// 1 张就够。首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在
+// 门外 —— 而引荐卡只取 position = 0 那一张当封面，1 张的卡是完整的卡。
+// 多传照片仍然有价值（别人更容易记住你），但它现在是建议，不是门槛：
+// 前端照 PHOTO_GOAL 催，后端不认这个数。
+const minPhotosForActive = 1
 
 // ProfileInput 是建档/编辑的入参。
 //
@@ -38,6 +44,11 @@ type ProfileInput struct {
 	CityCode       *int    `json:"city_code"`
 	HeightCM       *int16  `json:"height_cm"`
 	EducationLevel *int16  `json:"education_level"`
+
+	// BirthDay 与 BirthYM 配对提交，单独提交会被拒（没有年月就无从判断
+	// 这一天存不存在）。它不在必填 6 项里：老档案只知道年月，逼他们补一个
+	// 日子等于逼人编造。
+	BirthDay *int16 `json:"birth_day"`
 
 	// 选填 12 项
 	HometownCode *int    `json:"hometown_code"`
@@ -75,6 +86,7 @@ type ProfileView struct {
 	Nickname       *string  `json:"nickname"`
 	Gender         *string  `json:"gender"`
 	BirthYM        *int     `json:"birth_ym"`
+	BirthDay       *int16   `json:"birth_day"`
 	Age            *int     `json:"age"`
 	CityCode       *int     `json:"city_code"`
 	HeightCM       *int16   `json:"height_cm"`
@@ -166,7 +178,7 @@ func (s *Service) UpdateProfile(ctx context.Context, user *model.User, in *Profi
 // applyProfileState 重算完整度，并在入池条件齐备时把 status 翻成 active。
 //
 // 两件事必须在一起做，而且必须被资料接口和媒体接口共用：
-// 入池条件 = 6 项必填 + 头像 + ≥3 张照片，其中头像和照片不是资料接口设的。
+// 入池条件 = 6 项必填 + 头像 + ≥1 张照片，其中头像和照片不是资料接口设的。
 // 只在 UpdateProfile 里判翻牌的话，「先填资料、再传头像和照片」这条
 // 最自然的路径永远翻不了牌 —— 用户明明什么都填完了，还是卡在建档流程里。
 //
@@ -246,6 +258,20 @@ func applyInput(p *model.Profile, in *ProfileInput) error {
 			return err
 		}
 		p.BirthYM = in.BirthYM
+		// 年月换了，存量的「日」可能在新月份里不存在（1 月 31 日 → 2 月）。
+		// 必须在这里把它清掉：前端**没有办法**表达「清空」—— ProfileInput
+		// 全是指针，JSON 的 null 与「字段缺失」都解成 nil，buildPatch 又跳过
+		// null。不清的话库里会留下 1995-02-31，而 p_birth_day_chk 会直接
+		// 挡住这次写入，用户看到的是一句数据库约束错误。
+		if p.BirthDay != nil && !validDay(*p.BirthYM, *p.BirthDay) {
+			p.BirthDay = nil
+		}
+	}
+	if in.BirthDay != nil {
+		if err := checkBirthDay(p.BirthYM, *in.BirthDay); err != nil {
+			return err
+		}
+		p.BirthDay = in.BirthDay
 	}
 
 	if in.CityCode != nil {
@@ -280,14 +306,24 @@ func applyInput(p *model.Profile, in *ProfileInput) error {
 		p.EducationLevel = in.EducationLevel
 	}
 
-	// school_tier 不接受前端传值：它由服务端按院校库归一，
-	// M2 接上 schools 包之后在这里补一次归一查询。
+	// school_tier 不接受前端传值：它由服务端按院校库（internal/pkg/schools）
+	// 归一。建档页的校名只能从联想列表里选，但后端不依赖这一点 ——
+	// PATCH 是公开的接口，直接打接口塞一个任意校名照样会被这里归一。
+	//
+	// 清空校名要显式把 tier 置回 NULL：只改 school_name 的话，
+	// 用户删掉学校之后 tier 还留着上一次的值，档案会继续按 985 参与筛选。
 	if in.SchoolName != nil {
 		v, err := shortText(*in.SchoolName, "毕业院校")
 		if err != nil {
 			return err
 		}
 		p.SchoolName = v
+		if v == "" {
+			p.SchoolTier = nil
+		} else {
+			tier := schools.TierOf(v)
+			p.SchoolTier = &tier
+		}
 	}
 	if in.Occupation != nil {
 		v, err := shortText(*in.Occupation, "职业")
@@ -430,6 +466,47 @@ func checkBirthYM(ym int) error {
 	return nil
 }
 
+// checkBirthDay 校验「日」在给定的年月里真实存在。
+//
+// 与 checkBirthYM 分开，是因为两者管的不是一回事：ym 是入池门槛（18–60）
+// 的落点，day 不参与任何筛选与打分，只影响展示。所以这里不重复判年龄 ——
+// 1995-02-29 被拒是因为那一天不存在，不是因为他年龄不对。
+func checkBirthDay(ym *int, day int16) error {
+	if ym == nil {
+		return apierr.ErrBadRequest.WithMessage("请先选择出生年月")
+	}
+	if !validDay(*ym, day) {
+		return apierr.ErrBadRequest.WithMessage("出生日期不正确")
+	}
+	return nil
+}
+
+// validDay 判断 day 是不是该年该月里真实存在的一天。
+// 年月本身非法时一律返回 false。
+func validDay(ym int, day int16) bool {
+	year, month := ym/100, ym%100
+	if year < 1900 || year > 2999 || month < 1 || month > 12 {
+		return false
+	}
+	return day >= 1 && int(day) <= daysInMonth(year, month)
+}
+
+// daysInMonth 返回该年该月的天数。
+func daysInMonth(year, month int) int {
+	switch month {
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		// 四年一闰、百年不闰、四百年再闰
+		if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+			return 29
+		}
+		return 28
+	default:
+		return 31
+	}
+}
+
 // requiredMissing 是入池门槛里 profiles 表能表达的那部分：必填 6 项 + 头像。
 // 照片数不入这张单子，因为它不在 profiles 里。
 //
@@ -503,6 +580,7 @@ func (s *Service) buildView(user *model.User, p *model.Profile, photoCount int) 
 		Nickname:       p.Nickname,
 		Gender:         p.Gender,
 		BirthYM:        p.BirthYM,
+		BirthDay:       p.BirthDay,
 		CityCode:       p.CityCode,
 		HeightCM:       p.HeightCM,
 		EducationLevel: p.EducationLevel,
@@ -564,8 +642,14 @@ func ageFromBirthYM(ym int) (int, error) {
 // validCityCode 校验国标行政区划代码（6 位）。
 // 只做位数与范围校验，不比对完整码表 —— 前端用的是标准三级联动
 // 数据源，真正的错值只会来自手动构造的请求。
+//
+// 上界从 659999 放到 829999，是因为建档页的城市改成了全国省市联动，
+// 港澳台（710000/810000/820000）也在里面、且各自只有省级一条 ——
+// 上游的民政部数据里它们没有地级条目，码本身就落在旧上界之外。
+// 不放宽的话，选香港会被这一行静默拒掉，而前端只看到一句
+// 「所在城市不正确」；测试池子里永远碰不到。
 func validCityCode(code int) bool {
-	return code >= 110000 && code <= 659999
+	return code >= 110000 && code <= 829999
 }
 
 // looksLikeContact 粗略识别昵称里的联系方式。
