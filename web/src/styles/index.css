@@ -31,6 +31,10 @@
      唯一用到这一档的是下拉与弹层。 */
   --overlay-shadow: 0 6px 24px -8px rgb(21 28 27 / 0.18);
 
+  /* 弹层背后压下去的那一层。浅色下用墨色，深色下只能靠纯黑 ——
+     深色底本身已经很暗，拿墨色去压等于没压。 */
+  --mask: rgb(21 28 27 / 0.34);
+
   color-scheme: light;
 }
 
@@ -52,6 +56,7 @@
     /* 深色底上的 accent 是浅青，压在上面的字必须是深的 */
     --on-accent: #0c1312;
     --overlay-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.5);
+    --mask: rgb(0 0 0 / 0.55);
 
     color-scheme: dark;
   }
@@ -74,6 +79,7 @@
   --seal-soft: #3a241f;
   --on-accent: #0c1312;
   --overlay-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.5);
+  --mask: rgb(0 0 0 / 0.55);
 
   color-scheme: dark;
 }
@@ -218,6 +224,134 @@
     .seal-mark[data-landed='true'] {
       filter: none;
     }
+  }
+
+  /* ------------------------------------------------------ 底部弹层与滚轮
+     出生日期、所在城市、家乡三个复合控件的选择器（§19.2 / PRD 5.3 的
+     「SheetPicker / WheelPicker」「省市两级弹层」）。
+
+     **没有入场动画，这是有意的。** SealButton.tsx 那条「全站只有这一处
+     动效……让印章成为唯一一个会动的东西，它才有分量」是靠稀缺性成立的，
+     滑上来会是第三个例外。它替换掉的原生 select 本来也没有我们能控的动画。
+     真要加，是给 .sheet-panel 补三行 transform 过渡的事。 */
+
+  .sheet-mask {
+    position: absolute;
+    inset: 0;
+    background: var(--mask);
+  }
+
+  .sheet-panel {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    margin-inline: auto;
+    max-width: 640px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    /* 圆角 ≤ 4px —— 纸不圆。不跟 stubborn-love 的 20px 顶角。 */
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    /* 不能用 .pb-safe：它把 padding-bottom 整个赋掉，横条会紧贴内容。
+       这里要和内容自己的留白相加。 */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* 滚轮的尺寸只在这里定义一次，下面的每个 calc 都引用它 */
+  .wheel-frame {
+    --wheel-item-h: 40px;
+    --wheel-visible: 5;
+    position: relative;
+  }
+
+  .wheel-cols {
+    display: grid;
+  }
+
+  .wheel-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .wheel-scroll {
+    height: calc(var(--wheel-item-h) * var(--wheel-visible));
+    overflow-y: auto;
+    /* 吸附交给浏览器，别自己写惯性 */
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+    /* 滚到头不许把弹层、页面一起带着滚 */
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    /* 首尾各留两行，第一项和最后一项才滚得到中间 */
+    padding: calc(var(--wheel-item-h) * 2) 0;
+  }
+  .wheel-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wheel-item {
+    height: var(--wheel-item-h);
+    line-height: var(--wheel-item-h);
+    text-align: center;
+    scroll-snap-align: center;
+    font-size: 17px;
+    color: var(--muted);
+    user-select: none;
+    /* 数字纵向对齐；滚起来时字宽不变，看着才稳 */
+    font-variant-numeric: tabular-nums;
+    /* 字号和字重都不变 —— 只换颜色。字号一跳，滚动过程中整列都在重排 */
+    transition: color 0.15s ease;
+  }
+  .wheel-item.is-active {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .wheel-caption {
+    padding-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  /* 中间那一行：上下两条发丝线，横跨所有列 */
+  .wheel-band {
+    position: absolute;
+    top: calc(var(--wheel-item-h) * 2);
+    left: 0;
+    right: 0;
+    height: var(--wheel-item-h);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 上下渐隐，让远处的项淡出，视线落到中间一行 */
+  .wheel-fade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--wheel-item-h) * var(--wheel-visible));
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(
+      to bottom,
+      var(--surface) 0%,
+      transparent 32%,
+      transparent 68%,
+      var(--surface) 100%
+    );
   }
 }
 

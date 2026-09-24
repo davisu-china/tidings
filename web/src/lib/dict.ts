@@ -96,65 +96,8 @@ export function hourLabel(h: number | null | undefined): string {
   if (h === null || h === undefined) return ''
   return `${String(h).padStart(2, '0')}:00`
 }
-/**
- * 城市列表。用的是国标 GB/T 2260 的 6 位代码，但只收了直辖市、
- * 省会与主要城市 —— 完整列表四百多条，建档向导不该让人滚到底。
- * 后端只校验 110000–659999 这个范围，所以补全列表不需要改后端。
- */
-export const CITIES = [
-  { code: 110000, name: '北京' },
-  { code: 310000, name: '上海' },
-  { code: 440100, name: '广州' },
-  { code: 440300, name: '深圳' },
-  { code: 330100, name: '杭州' },
-  { code: 320100, name: '南京' },
-  { code: 510100, name: '成都' },
-  { code: 420100, name: '武汉' },
-  { code: 610100, name: '西安' },
-  { code: 500000, name: '重庆' },
-  { code: 120000, name: '天津' },
-  { code: 320500, name: '苏州' },
-  { code: 330200, name: '宁波' },
-  { code: 370200, name: '青岛' },
-  { code: 370100, name: '济南' },
-  { code: 350200, name: '厦门' },
-  { code: 350100, name: '福州' },
-  { code: 430100, name: '长沙' },
-  { code: 410100, name: '郑州' },
-  { code: 340100, name: '合肥' },
-  { code: 210100, name: '沈阳' },
-  { code: 210200, name: '大连' },
-  { code: 220100, name: '长春' },
-  { code: 230100, name: '哈尔滨' },
-  { code: 130100, name: '石家庄' },
-  { code: 140100, name: '太原' },
-  { code: 360100, name: '南昌' },
-  { code: 450100, name: '南宁' },
-  { code: 460100, name: '海口' },
-  { code: 520100, name: '贵阳' },
-  { code: 530100, name: '昆明' },
-  { code: 620100, name: '兰州' },
-  { code: 650100, name: '乌鲁木齐' },
-  { code: 150100, name: '呼和浩特' },
-  { code: 640100, name: '银川' },
-  { code: 630100, name: '西宁' },
-  { code: 540100, name: '拉萨' },
-  { code: 320200, name: '无锡' },
-  { code: 320600, name: '南通' },
-  { code: 330300, name: '温州' },
-  { code: 330400, name: '嘉兴' },
-  { code: 440400, name: '珠海' },
-  { code: 440600, name: '佛山' },
-  { code: 441900, name: '东莞' },
-  { code: 441300, name: '惠州' },
-] as const
-
-const cityMap = new Map<number, string>(CITIES.map((c) => [c.code, c.name]))
-
-export function cityName(code: number | null | undefined): string {
-  if (code === null || code === undefined) return ''
-  return cityMap.get(code) ?? ''
-}
+// 城市（省市两级区划）不在这里 —— 它是一份 344 条的生成数据，
+// 见 lib/regions.ts 与 scripts/gen-regions.mjs。这里只留字段字典。
 
 function labelOf(
   list: readonly { value: number | string; label: string }[],
@@ -184,12 +127,29 @@ export const MISSING_LABELS: Record<string, string> = {
   height_cm: '身高',
   education_level: '学历',
   avatar_key: '头像',
-  photos: '照片（至少 3 张）',
+  // 不带张数：改完之后这条只在 0 张时出现，写「至少 3 张」会是假话。
+  photos: '照片',
 }
 
 export function missingLabels(fields: readonly string[]): string[] {
   return fields.map((f) => MISSING_LABELS[f] ?? f)
 }
+
+/**
+ * 入池要求的最少照片数。对应 backend/internal/service/profile.go 的
+ * minPhotosForActive，改一处必须改另一处（同 daysInMonth 的做法）。
+ *
+ * **只准出现在文案里。** 判「够没够入池」一律看服务端的 missing_required ——
+ * 那是唯一的事实来源，前端自己判一遍就有了第二份真相，两边总有一次会对不上。
+ * onboarding.tsx 的下一步门禁就是这么做的，别改它。
+ */
+export const MIN_PHOTOS = 1
+
+/**
+ * 建议张数。后端没有这个数，也不参与任何判定 —— 它是纯粹的文案目标：
+ * 传够 PHOTO_GOAL 之后就不再提照片的事，有终点才不像催命。
+ */
+export const PHOTO_GOAL = 3
 
 /** 从 YYYYMM 推到今天的周岁。后端也算了一份，这里只用于界面即时回显。 */
 export function ageFromBirthYM(ym: number | null | undefined): number | null {
@@ -205,9 +165,54 @@ export function ageFromBirthYM(ym: number | null | undefined): number | null {
   return age
 }
 
-export function formatBirthYM(ym: number | null | undefined): string {
+/**
+ * 某年某月有几天。与后端 `daysInMonth` 是同一套规则，两处必须一起改 ——
+ * 前端少算一天（比如闰年）会让日历上 2 月 29 日直接消失，而后端认它。
+ *
+ * 用 `new Date(y, m, 0).getDate()` 也能算，但那要把年份塞进 Date：
+ * 1900 年附近、`Date` 的两位年份补全历史都会来插一脚。查表更短也更好读。
+ */
+export function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+    return leap ? 29 : 28
+  }
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31
+}
+
+/**
+ * 出生年可选范围。后端把年龄卡在 18–60 岁（未成年人不得进入这个产品），
+ * 所以年份是「今年往前 18 到 60 年」，与 profile.go 的 checkBirthYM 同一条边界。
+ *
+ * 取 now 参数而不是在模块顶层算一次：SPA 会话可以横跨跨年，import 时求值
+ * 会让 18 岁那条边界一直停在打开页面那一天。
+ */
+export function birthYearRange(now: Date = new Date()): { min: number; max: number } {
+  return { min: now.getFullYear() - 60, max: now.getFullYear() - 18 }
+}
+
+/**
+ * 该年份最多能选到几月。只有 18 岁那一年会被当前月份截断 ——
+ * 2008 年 10 月生在 2026 年 9 月还是 17 岁，服务端 checkBirthYM 会直接拒。
+ *
+ * 另一端不用截：出生月在当前月之后只会**减**一岁，所以 1966 年 12 月
+ * 是 59 岁不是 61 岁，最早那一年照样是完整的 12 个月。
+ */
+export function monthsInYear(year: number, now: Date = new Date()): number {
+  return year === now.getFullYear() - 18 ? now.getMonth() + 1 : 12
+}
+
+/**
+ * 出生日期的人话。day 为 null 时只说到月 —— 老档案只知道年月，
+ * 这里不该替它编一个日子出来。
+ */
+export function formatBirthDate(
+  ym: number | null | undefined,
+  day: number | null | undefined,
+): string {
   if (!ym) return ''
   const year = Math.floor(ym / 100)
   const month = ym % 100
-  return `${year} 年 ${month} 月`
+  if (!day) return `${year} 年 ${month} 月`
+  return `${year} 年 ${month} 月 ${day} 日`
 }

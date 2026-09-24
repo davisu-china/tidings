@@ -91,7 +91,7 @@ export function ProfileEditPage() {
 
       <Block
         title="基本"
-        description="昵称、性别、出生年月、城市。这四项决定你会被引荐给谁。"
+        description="昵称、性别、出生日期、城市。这四项决定你会被引荐给谁。"
         dirty={isDirty(BASIC_FIELDS)}
         saving={saving}
         onSave={() => void save(BASIC_FIELDS)}

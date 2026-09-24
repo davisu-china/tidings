@@ -96,6 +96,8 @@ export interface ProfileInput {
   gender?: 'M' | 'F'
   /** YYYYMM，如 199508 */
   birth_ym?: number
+  /** 出生日 1–31，与 birth_ym 配对提交。老档案只知道年月，所以是可选的 */
+  birth_day?: number
   city_code?: number
   height_cm?: number
   education_level?: number
@@ -130,6 +132,8 @@ export interface Profile {
   nickname: string | null
   gender: 'M' | 'F' | null
   birth_ym: number | null
+  /** 出生日。null = 只知道年月（老档案），不是「没填」 */
+  birth_day: number | null
   age: number | null
   city_code: number | null
   height_cm: number | null
@@ -228,3 +232,15 @@ export interface Settings {
 }
 
 export type SettingsInput = Pick<Settings, 'intros_paused' | 'quiet_start' | 'quiet_end'>
+
+/**
+ * 院校库的联想结果（GET /schools）。
+ *
+ * tier 是服务端按校名归一出来的层级（1 专科 / 2 普通本科 / 3 211 /
+ * 4 985 / 5 QS 前 500），列表里不展示它 —— 它参与匹配打分，不该反过来
+ * 变成用户挑学校的依据。
+ */
+export interface SchoolItem {
+  name: string
+  tier: number
+}

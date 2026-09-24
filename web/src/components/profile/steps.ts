@@ -3,27 +3,42 @@ import type { FieldKey } from './schema'
 /**
  * 建档的四个步骤。
  *
- * 顺序不是随便排的：前三步装的全是入池门槛（6 项必填 + 头像 + 3 张照片），
+ * 顺序不是随便排的：前三步装的是入池门槛（6 项必填 + 头像 + 第 1 张照片），
  * 第四步才是选填。用户在第四步停下来，档案也已经是可被引荐的 ——
  * 让必填项散落在最后一步是不可接受的。
+ *
+ * 第三步里只有头像和第 1 张是门槛：照片的要求是 1 张（见
+ * backend/internal/service/profile.go 的 minPhotosForActive），第 2、3 张
+ * 和第四步的选填项同性质 —— 有价值，但不拦人。
  */
 export const BASIC_FIELDS = [
   'nickname',
   'gender',
-  'birth_year',
-  'birth_month',
+  'birth_ym',
+  // 出生日必须在这里：buildPatch 只发 keys 里的字段，漏了它就永远存不上。
+  // 老档案豁免的是 zod 的必填（见 profileSchemaFor），不是这一步的提交范围。
+  'birth_day',
   'city_code',
 ] as const satisfies readonly FieldKey[]
 
-export const FIGURE_FIELDS = ['height_cm', 'education_level'] as const satisfies readonly FieldKey[]
+/**
+ * 外形与教育。体重、毕业院校是选填，本可以留在第四步，但它们和
+ * 身高、学历是成对的（身高体重一行、学历学校一行），拆开两步会让
+ * 「填身高」和「填体重」隔着一整个步骤。代价是这一步里必填与选填混排，
+ * 所以选填的两项在界面上都标了「选填」。
+ */
+export const FIGURE_FIELDS = [
+  'height_cm',
+  'weight_kg',
+  'education_level',
+  'school_name',
+] as const satisfies readonly FieldKey[]
 
 /** 照片这一步不提交字段：头像和照片各自有接口，上传完即时生效。 */
 export const PHOTO_FIELDS = [] as const satisfies readonly FieldKey[]
 
 export const MORE_FIELDS = [
   'hometown_code',
-  'weight_kg',
-  'school_name',
   'occupation',
   'company',
   'income_band',

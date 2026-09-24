@@ -10,7 +10,8 @@ import { PushSetting } from '@/components/PushSetting'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/cn'
-import { ageFromBirthYM, cityName, educationLabel, genderLabel, missingLabels } from '@/lib/dict'
+import { ageFromBirthYM, educationLabel, genderLabel, missingLabels, PHOTO_GOAL } from '@/lib/dict'
+import { cityName } from '@/lib/regions'
 import { disablePush } from '@/lib/push'
 import { clearTokens, getRefreshToken } from '@/lib/token'
 
@@ -165,9 +166,11 @@ export function MePage() {
           to="/me/photos"
           label="照片"
           hint={
-            profile.photo_count >= 3
-              ? `${profile.photo_count} 张，已够入池`
-              : `${profile.photo_count} 张，还差 ${3 - profile.photo_count} 张`
+            profile.photo_count === 0
+              ? '还没有照片'
+              : profile.photo_count < PHOTO_GOAL
+                ? `${profile.photo_count} 张，再加 ${PHOTO_GOAL - profile.photo_count} 张更容易被记住`
+                : `${profile.photo_count} 张，第一张是封面`
           }
         />
         <EntryLink to="/me/preferences" label="偏好设置" hint="硬条件 5 项、软偏好 3 项" />

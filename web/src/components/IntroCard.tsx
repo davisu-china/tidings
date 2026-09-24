@@ -13,7 +13,8 @@ import { PassReasons, SealButton, SealMark } from '@/components/SealButton'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
-import { ageFromBirthYM, cityName, educationLabel, incomeLabel } from '@/lib/dict'
+import { ageFromBirthYM, educationLabel, incomeLabel } from '@/lib/dict'
+import { cityName } from '@/lib/regions'
 import { messageOf } from '@/lib/errors'
 
 /**

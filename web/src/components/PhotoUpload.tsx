@@ -8,6 +8,7 @@ import { SortablePhotoGrid } from '@/components/SortablePhotoGrid'
 import { Spinner } from '@/components/ui/spinner'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
+import { PHOTO_GOAL } from '@/lib/dict'
 import { messageOf } from '@/lib/errors'
 import { uploadImage } from '@/lib/upload'
 
@@ -127,7 +128,8 @@ export function AvatarUploader({ avatarUrl }: { avatarUrl: string }) {
 }
 
 /**
- * 照片九宫格。至少 3 张才入池（照片单独判，不参与完成度）。
+ * 照片九宫格。1 张就能入池（照片单独判，不参与完成度），
+ * 下面那段文案往 PHOTO_GOAL 张推。
  *
  * 第一张即封面 —— 后端按 position = 0 取，所以排序就是选封面，
  * 不另做「设为主图」按钮。
@@ -197,16 +199,27 @@ export function PhotoUploader({
         onAdd={open}
       />
 
+      {/*
+        文案三条约定：
+        1. 「已选 N 张」这个前缀不能动 —— e2e-onboarding 拿它当上传成功的锚点，
+           改了整个脚本会以一个看不懂的错挂掉。
+        2. 到 PHOTO_GOAL 张就一个字都不再提照片。目标是 3 不是无限催，有终点才不像催命。
+        3. 说收益（别人更容易记住你），不说亏欠（才够入池）。唯一出现「才够入池」
+           的地方是 0 张 —— 那时它字面为真，用户也确实卡着。
+      */}
       <p className="mt-3 text-[13px] leading-[1.7] text-muted">
-        {photos.length < 3 ? (
-          <>
-            已选 <span className="tnum font-mono text-ink-2">{photos.length}</span> 张，
-            还差 <span className="tnum font-mono text-ink-2">{3 - photos.length}</span> 张才够入池。
-          </>
+        {photos.length === 0 ? (
+          <>还没有照片。传 1 张就能入池，第一张是封面。</>
         ) : (
           <>
             已选 <span className="tnum font-mono text-ink-2">{photos.length}</span> 张。
             第一张是封面。
+            {photos.length < PHOTO_GOAL && (
+              <>
+                再加 <span className="tnum font-mono text-ink-2">{PHOTO_GOAL - photos.length}</span> 张，
+                别人更容易记住你。
+              </>
+            )}
           </>
         )}
         {photos.length > 1 && <><br />按住拖动可以换顺序。</>}

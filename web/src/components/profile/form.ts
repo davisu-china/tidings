@@ -8,7 +8,13 @@ import type { Profile } from '@/api/types'
 import { useToast } from '@/components/ui/toast'
 import { messageOf } from '@/lib/errors'
 
-import { buildPatch, profileSchema, toFormValues, type FieldKey, type ProfileForm } from './schema'
+import {
+  buildPatch,
+  profileSchemaFor,
+  toFormValues,
+  type FieldKey,
+  type ProfileForm,
+} from './schema'
 
 export interface ProfileFormApi {
   form: UseFormReturn<ProfileForm>
@@ -30,8 +36,15 @@ export function useProfileForm(profile: Profile): ProfileFormApi {
   const qc = useQueryClient()
   const toast = useToast()
 
+  // 老档案（有年月、没有日）豁免「哪一天」的必填，见 schema.ts。只算一次：
+  // 一旦用户补上了日，requireBirthDay 就翻成 true，而那时日已经有值了。
+  const requireBirthDay = React.useMemo(
+    () => !(profile.birth_ym !== null && profile.birth_day === null),
+    [profile.birth_ym, profile.birth_day],
+  )
+
   const form = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema),
+    resolver: zodResolver(React.useMemo(() => profileSchemaFor({ requireBirthDay }), [requireBirthDay])),
     defaultValues: toFormValues(profile),
     mode: 'onTouched',
   })

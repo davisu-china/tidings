@@ -1,8 +1,23 @@
 import { api } from './client'
-import type { Profile, ProfileInput } from './types'
+import type { Profile, ProfileInput, SchoolItem } from './types'
 
 export function fetchProfile(signal?: AbortSignal): Promise<Profile> {
   return api.get<Profile>('/me/profile', { signal })
+}
+
+/**
+ * 院校库联想。q 为空返回空列表而不是热门排行 —— 没输入时不该弹一层
+ * 用户没要的东西出来。
+ */
+export function searchSchools(
+  q: string,
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<{ items: SchoolItem[]; total: number }> {
+  return api.get<{ items: SchoolItem[]; total: number }>(
+    `/schools?q=${encodeURIComponent(q)}&limit=${limit}`,
+    { signal },
+  )
 }
 
 /**

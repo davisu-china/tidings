@@ -5,16 +5,22 @@ import type { Profile, ProfileInput } from '@/api/types'
 /**
  * 表单模型。刻意和 ProfileInput 长得不完全一样：
  *
- * 1. 出生年月在界面上是两个滚轮（年、月），提交时才合成 YYYYMM。
- *    让人在一个输入框里敲「199508」是最容易被填错的那种字段。
+ * 1. 出生日期拆成 birth_ym（YYYYMM）与 birth_day 两个字段，界面上是
+ *    年 → 月 → 日三级联动。**年月与日分开存是有意的**：后端的
+ *    birth_ym 是入池门槛与年龄筛选的落点（偏好页的岁↔月换算、候选集 SQL
+ *    都按它来），而 birth_day 只影响展示。合成一个完整日期要同时改那几处，
+ *    收益为零。
  * 2. 所有字段都允许 null —— 向导是分步的，第一步没填的字段在模型里
- *    必须能表示「还没填」，而不是被兜成 0。
+ *    必须能表示「还没填」，而不是被兜成 0。birth_day 的 null 还多一层
+ *    含义：老档案只知道年月，那是「没有这个信息」而不是「没填」。
  */
 export interface ProfileForm {
   nickname: string
   gender: 'M' | 'F' | null
-  birth_year: number | null
-  birth_month: number | null
+  /** YYYYMM，如 199508 */
+  birth_ym: number | null
+  /** 1–31。null = 只知道年月，或还没选 */
+  birth_day: number | null
   city_code: number | null
   height_cm: number | null
   education_level: number | null
@@ -59,56 +65,83 @@ const MAX_HOBBY_RUNES = 8
  *
  * 前端校验不是为了替代后端 —— 后端每一道都还在。它只是把「传上去才知道不行」
  * 变成「当场就知道」，这是 §19.8 明确要补的洞。
+ *
+ * 「日」是**条件必填**，所以 schema 是工厂：老档案（有年月、没有日）豁免，
+ * 其余必填。两个方向都得照顾 ——
+ *   · 无条件可选：新建档的人选完年月就点下一步，日永远是空的，
+ *     「精确到日」这件事等于没做；
+ *   · 无条件必填：老用户只改城市也要先补一个生日，而 form.trigger 是按
+ *     「基本」整块触发的，他连昵称都改不了，除非编一个日子 ——
+ *     这与「老数据不编造」直接冲突。
  */
-export const profileSchema = z.object({
-  nickname: z
-    .string()
-    .trim()
-    .min(2, '昵称需要 2 到 12 个字')
-    .max(12, '昵称需要 2 到 12 个字'),
-  gender: z
-    .enum(['M', 'F'])
-    .nullable()
-    .refine((v) => v !== null, { message: '请选择性别' }),
-  birth_year: requiredNumber('请选择出生年份'),
-  birth_month: requiredNumber('请选择出生月份'),
-  city_code: requiredNumber('请选择所在城市'),
-  height_cm: requiredNumber('请选择身高'),
-  education_level: requiredNumber('请选择学历'),
+export function profileSchemaFor({ requireBirthDay }: { requireBirthDay: boolean }) {
+  const base = z.object({
+    nickname: z
+      .string()
+      .trim()
+      .min(2, '昵称需要 2 到 12 个字')
+      .max(12, '昵称需要 2 到 12 个字'),
+    gender: z
+      .enum(['M', 'F'])
+      .nullable()
+      .refine((v) => v !== null, { message: '请选择性别' }),
+    birth_ym: requiredNumber('请选择出生日期'),
+    // 「日」自己不挂 refine：条件必填的规则挂在 birth_ym 上（见下），
+    // 这样错误落在 Field 读的那个槽里，而且 BASIC_FIELDS 一定含 birth_ym，
+    // trigger 不会把这条错误过滤掉。
+    birth_day: z.number().int().nullable(),
+    city_code: requiredNumber('请选择所在城市'),
+    height_cm: requiredNumber('请选择身高'),
+    education_level: requiredNumber('请选择学历'),
 
-  hometown_code: z.number().int().nullable(),
-  weight_kg: z.number().int().nullable(),
-  school_name: z.string().trim().max(40, '不能超过 40 个字'),
-  occupation: z.string().trim().max(40, '不能超过 40 个字'),
-  company: z.string().trim().max(40, '不能超过 40 个字'),
-  income_band: z.number().int().nullable(),
-  chronotype: z.number().int().nullable(),
-  smoking: z.number().int().nullable(),
-  drinking: z.number().int().nullable(),
-  hobbies: z
-    .string()
-    .refine((v) => splitHobbies(v).length <= MAX_HOBBIES, {
-      message: `兴趣标签最多 ${MAX_HOBBIES} 个`,
-    })
-    .refine((v) => splitHobbies(v).every((t) => [...t].length <= MAX_HOBBY_RUNES), {
-      message: `单个标签不能超过 ${MAX_HOBBY_RUNES} 个字`,
-    }),
-  intro: z.string().trim().max(300, '不能超过 300 个字'),
-  expectation: z.string().trim().max(300, '不能超过 300 个字'),
-  want_child: z.number().int().nullable(),
-  marital_status: z.number().int().nullable(),
-})
+    hometown_code: z.number().int().nullable(),
+    weight_kg: z.number().int().nullable(),
+    school_name: z.string().trim().max(40, '不能超过 40 个字'),
+    occupation: z.string().trim().max(40, '不能超过 40 个字'),
+    company: z.string().trim().max(40, '不能超过 40 个字'),
+    income_band: z.number().int().nullable(),
+    chronotype: z.number().int().nullable(),
+    smoking: z.number().int().nullable(),
+    drinking: z.number().int().nullable(),
+    hobbies: z
+      .string()
+      .refine((v) => splitHobbies(v).length <= MAX_HOBBIES, {
+        message: `兴趣标签最多 ${MAX_HOBBIES} 个`,
+      })
+      .refine((v) => splitHobbies(v).every((t) => [...t].length <= MAX_HOBBY_RUNES), {
+        message: `单个标签不能超过 ${MAX_HOBBY_RUNES} 个字`,
+      }),
+    intro: z.string().trim().max(300, '不能超过 300 个字'),
+    expectation: z.string().trim().max(300, '不能超过 300 个字'),
+    want_child: z.number().int().nullable(),
+    marital_status: z.number().int().nullable(),
+  })
+
+  if (!requireBirthDay) return base
+
+  return base.superRefine((v, ctx) => {
+    if (v.birth_ym !== null && v.birth_day === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['birth_ym'],
+        message: '请选择出生日期（含哪一天）',
+      })
+    }
+  })
+}
+
+/** 新用户与被补过日的用户走这一份。表单那层用 profileSchemaFor 生成。 */
+export const profileSchema = profileSchemaFor({ requireBirthDay: true })
 
 export type FieldKey = keyof ProfileForm
 
 /** 回填。19.6 的第一个洞就是「表单从不回填」，这里是那个洞的修法。 */
 export function toFormValues(p: Profile): ProfileForm {
-  const ym = p.birth_ym
   return {
     nickname: p.nickname ?? '',
     gender: p.gender,
-    birth_year: ym ? Math.floor(ym / 100) : null,
-    birth_month: ym ? ym % 100 : null,
+    birth_ym: p.birth_ym,
+    birth_day: p.birth_day,
     city_code: p.city_code,
     height_cm: p.height_cm,
     education_level: p.education_level,
@@ -140,13 +173,9 @@ export function toFormValues(p: Profile): ProfileForm {
 export function buildPatch(v: ProfileForm, keys: readonly FieldKey[]): ProfileInput {
   const out: Record<string, unknown> = {}
   for (const k of keys) {
-    if (k === 'birth_year' || k === 'birth_month') continue
     const val = v[k]
     if (val === null) continue
     out[k] = typeof val === 'string' ? val.trim() : val
-  }
-  if (keys.includes('birth_year') && v.birth_year !== null && v.birth_month !== null) {
-    out.birth_ym = v.birth_year * 100 + v.birth_month
   }
   return out as ProfileInput
 }

@@ -5,9 +5,12 @@ import { Controller, useForm } from 'react-hook-form'
 import { Link, useLoaderData } from 'react-router'
 import { z } from 'zod'
 
+import { X } from 'lucide-react'
+
 import { fetchPreference, savePreference } from '@/api/preferences'
 import { fetchProfile } from '@/api/profile'
 import type { Preference, PreferenceInput, Profile } from '@/api/types'
+import { ProvinceCitySelects } from '@/components/ProvinceCitySelects'
 import { Field, Row } from '@/components/profile/fields'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
@@ -16,7 +19,6 @@ import { Spinner } from '@/components/ui/spinner'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import {
-  CITIES,
   DIVORCED_ACCEPTANCE,
   EDUCATION_LEVELS,
   INCOME_BANDS,
@@ -24,6 +26,7 @@ import {
   WANT_CHILDREN,
 } from '@/lib/dict'
 import { messageOf } from '@/lib/errors'
+import { cityLabel, provinceNo } from '@/lib/regions'
 
 export async function preferencesLoader() {
   // 档案只是为了让城市那一项知道自己所在的省（见 CityPicker）。
@@ -31,9 +34,6 @@ export async function preferencesLoader() {
   const [preference, profile] = await Promise.all([fetchPreference(), fetchProfile()])
   return { preference, profile }
 }
-
-/** 省份取城市代码的前两位，与召回 SQL 里的 city_code / 10000 是同一个口径。 */
-const province = (code: number) => Math.floor(code / 10000)
 
 /**
  * 「不限」在下拉里的哨兵值。
@@ -189,12 +189,26 @@ function Block({
   )
 }
 
+/** 表里没有的码（老数据）也要显示出个东西来，不能是一块空白。 */
+function labelOfCity(code: number): string {
+  return cityLabel(code) || `未知城市 ${code}`
+}
+
 /**
- * 期望城市的多选。
+ * 期望城市：省 → 市 → 添加 → 已选 chips。
  *
- * 用一排可切换的方块而不是多选下拉：手机上原生多选控件几乎不可用
- * （iOS 是「点一下选中、再点右上角完成」），而这个字段选几个就会看几次。
- * 上限 5 个是后端定的，到顶之后其余的置灰而不是让点了没反应。
+ * 改之前这里是一面 45 个方块拼成的墙（只在 45 个城市里挑）。墙换成两级联动
+ * 之后有两个后果要想清楚：
+ *
+ * 1. **省与市是「待添加」的草稿，不是表单字段。** 它们是 useState，不进
+ *    PrefForm —— 放进去的话，用户只是把省下拉拨到浙江、还没点添加，
+ *    这个中间态就会被当成已保存的偏好发给后端（而「浙江全省」不是一个
+ *    后端认得的城市），也会把 isDirty 弄脏。
+ * 2. **添加按钮必须写死 `type="button"`。** 这一页外面是一个大
+ *    `<form onSubmit>`，漏了它就变成了提交按钮 —— 点「添加」会顺手存一次盘。
+ *
+ * 上限 5 个现在有三处约定（zod 的 max(5)、这里、后端 + DB CHECK），
+ * 这里这处管的是「到顶之后按钮置灰」，不是校验。
  */
 function CityPicker({
   value,
@@ -208,21 +222,30 @@ function CityPicker({
   onChange: (next: number[]) => void
   error?: string
 }) {
+  const [province, setProvince] = React.useState<number | null>(null)
+  const [city, setCity] = React.useState<number | null>(null)
+
   const full = value.length >= 5
+  const added = city !== null && value.includes(city)
 
   // 召回是「期望城市」与「同城或同省」两条一起成立的，只选省外的城市，
   // 两条永远不可能同时满足 —— 这个账号会一封引荐都收不到，而界面上
   // 看不出任何异常。这不是用法错误，但必须说出来。
+  //
+  // 比的是省级前缀（330100 → 33），与召回 SQL 里 city_code / 10000 同一口径。
+  // 对直辖市天然成立（310000 与 310000 同省），所以这里不能改成拿
+  // provinceOfCode 比 —— 那会把「上海 + 上海」判成不同省。
   const noneInMyProvince =
-    value.length > 0 && myCityCode !== null && !value.some((c) => province(c) === province(myCityCode))
+    value.length > 0 &&
+    myCityCode !== null &&
+    !value.some((c) => provinceNo(c) === provinceNo(myCityCode))
 
-  function toggle(code: number) {
-    if (value.includes(code)) {
-      onChange(value.filter((c) => c !== code))
-      return
-    }
-    if (full) return
-    onChange([...value, code])
+  function add() {
+    if (city === null || full || added) return
+    onChange([...value, city])
+    // 市留着不动：加完之后按钮变成「已添加」并置灰，用户想再加一个就直接
+    // 换市（换省/换市都会经由控件把 city 更新掉）。清空反而会在直辖市上
+    // 留下「上海 · 空市」这种自相矛盾的状态。
   }
 
   return (
@@ -239,40 +262,58 @@ function CityPicker({
           {noneInMyProvince && (
             <>
               <br />
-              这些城市都不在你所在的省，而引荐只在同城或同省之间产生 ——
-              这么填等于收不到引荐。要缩小范围的话，选几个你所在省里的城市。
+              这些城市都不在你所在的省份，而引荐只在同城或同省之间产生 ——
+              这么填等于收不到引荐。要缩小范围的话，选几个你所在省份里的城市。
             </>
           )}
         </>
       }
     >
-      <div
-        role="group"
-        aria-labelledby="city_codes-label"
-        className="flex flex-wrap gap-px overflow-hidden rounded-card border border-line bg-line"
-      >
-        {CITIES.map((c) => {
-          const active = value.includes(c.code)
-          return (
-            <button
-              key={c.code}
-              type="button"
-              aria-pressed={active}
-              disabled={!active && full}
-              onClick={() => toggle(c.code)}
-              className={cn(
-                'min-h-[40px] flex-1 basis-[calc(25%-1px)] px-2 text-[13px] transition-colors duration-150',
-                'focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent',
-                active
-                  ? 'bg-accent-soft text-accent-ink'
-                  : 'bg-surface text-ink-2 hover:bg-surface-2',
-                !active && full && 'cursor-not-allowed text-muted hover:bg-surface',
-              )}
-            >
-              {c.name}
-            </button>
-          )
-        })}
+      {/* Field 在 group 模式下把 aria-labelledby 与 aria-describedby 都注到了
+          这个 div 上，所以它就是那个 group —— 里面的下拉、按钮、chips 都算
+          它的内容，读屏进入这一组时会念出标签与提示。 */}
+      <div role="group" className="grid gap-3">
+        <div className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
+          <ProvinceCitySelects
+            idBase="city_codes"
+            province={province}
+            city={city}
+            onProvince={setProvince}
+            onCity={setCity}
+          />
+          <Button
+            id="city_codes_add"
+            type="button"
+            variant="line"
+            onClick={add}
+            disabled={city === null || full || added}
+          >
+            {added ? '已添加' : full ? '已满 5 个' : '添加'}
+          </Button>
+        </div>
+
+        {value.length > 0 && (
+          <ul className="flex flex-wrap gap-2">
+            {value.map((code) => (
+              <li key={code}>
+                <button
+                  type="button"
+                  id={`city_codes_remove_${code}`}
+                  aria-label={`移除 ${labelOfCity(code)}`}
+                  onClick={() => onChange(value.filter((c) => c !== code))}
+                  className={cn(
+                    'flex h-9 items-center gap-1 rounded-card border border-line bg-surface pl-3 pr-2',
+                    'text-[13px] text-ink-2 transition-colors duration-150 hover:border-ink-2',
+                    'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+                  )}
+                >
+                  {labelOfCity(code)}
+                  <X aria-hidden className="h-3.5 w-3.5 text-muted" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Field>
   )

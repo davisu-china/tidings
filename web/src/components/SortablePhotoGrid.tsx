@@ -45,11 +45,14 @@ function SortablePhoto({
   photo,
   cover,
   deleting,
+  canDelete,
   onDelete,
 }: {
   photo: Photo
   cover: boolean
   deleting: boolean
+  /** 只有 1 张时不给删：服务端会拒（LAST_PHOTO），这里少一次注定失败的点击 */
+  canDelete: boolean
   onDelete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -71,25 +74,27 @@ function SortablePhoto({
     >
       <PhotoTile photo={photo} cover={cover} />
 
-      <button
-        type="button"
-        aria-label="删除这张照片"
-        disabled={deleting}
-        // 不拦下来的话，按住删除键 200ms 会被 TouchSensor 当成拖拽起手，
-        // 删除就点不动了
-        onPointerDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        onClick={onDelete}
-        className={cn(
-          'absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-card',
-          'bg-paper/85 text-ink-2 transition-colors duration-150 hover:text-ink',
-          'focus-visible:outline-none focus-visible:border focus-visible:border-accent',
-          deleting && 'opacity-45',
-        )}
-      >
-        <X aria-hidden className="h-3.5 w-3.5" strokeWidth={1.5} />
-      </button>
+      {canDelete && (
+        <button
+          type="button"
+          aria-label="删除这张照片"
+          disabled={deleting}
+          // 不拦下来的话，按住删除键 200ms 会被 TouchSensor 当成拖拽起手，
+          // 删除就点不动了
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onClick={onDelete}
+          className={cn(
+            'absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-card',
+            'bg-paper/85 text-ink-2 transition-colors duration-150 hover:text-ink',
+            'focus-visible:outline-none focus-visible:border focus-visible:border-accent',
+            deleting && 'opacity-45',
+          )}
+        >
+          <X aria-hidden className="h-3.5 w-3.5" strokeWidth={1.5} />
+        </button>
+      )}
     </div>
   )
 }
@@ -189,6 +194,7 @@ export function SortablePhotoGrid({
               photo={p}
               cover={i === 0}
               deleting={deleting === p.id}
+              canDelete={items.length > 1}
               onDelete={() => onDelete(p.id)}
             />
           ))}

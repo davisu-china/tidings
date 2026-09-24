@@ -1,12 +1,15 @@
 import * as React from 'react'
-import { Controller, useWatch, type Control, type FieldErrors } from 'react-hook-form'
+import { Controller, useController, type Control, type FieldErrors } from 'react-hook-form'
 
 import { Input, Textarea } from '@/components/ui/input'
 import { FieldError, Label } from '@/components/ui/label'
 import { Segmented } from '@/components/ui/segmented'
 import { Select } from '@/components/ui/select'
-import { ageFromBirthYM, CHRONOTYPES, CITIES, EDUCATION_LEVELS, FREQUENCIES, GENDERS, INCOME_BANDS, MARITAL_STATUSES, WANT_CHILDREN } from '@/lib/dict'
+import { ageFromBirthYM, CHRONOTYPES, EDUCATION_LEVELS, formatBirthDate, FREQUENCIES, GENDERS, INCOME_BANDS, MARITAL_STATUSES, WANT_CHILDREN } from '@/lib/dict'
 
+import { BirthDatePicker } from './BirthDatePicker'
+import { RegionPicker } from './RegionPicker'
+import { SchoolSelect } from './SchoolSelect'
 import { splitHobbies, type ProfileForm } from './schema'
 
 export interface SectionProps {
@@ -84,19 +87,8 @@ export function Row({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-5 sm:grid-cols-2">{children}</div>
 }
 
-const CITY_OPTIONS = CITIES.map((c) => ({ value: c.code, label: c.name }))
-
-// 出生年月。后端把年龄卡在 18–60 岁，所以年份就是「今年往前 18 到 60 年」；
-// 月份在 18 岁那一年收窄到当前月，否则会排出 17 岁的组合，
-// 用户要提交之后才知道不行。
-const NOW = new Date()
-const MIN_YEAR = NOW.getFullYear() - 60
-const MAX_YEAR = NOW.getFullYear() - 18
-
-const YEAR_OPTIONS = Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, i) => {
-  const y = MAX_YEAR - i
-  return { value: y, label: `${y} 年` }
-})
+// 出生日期与城市都不在这里：它们各自是复合控件（年月日三级、省市两级），
+// 见 BirthDatePicker.tsx 与 RegionPicker.tsx。这里只留单层的选项表。
 
 // 身高用原生 select：手机上它会唤起系统滚轮，精确停在 165 比任何自绘控件都容易（19.2）
 const HEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => {
@@ -106,19 +98,45 @@ const HEIGHT_OPTIONS = Array.from({ length: 71 }, (_, i) => {
 
 const MAX_HOBBIES = 6
 
-function monthOptions(year: number | null) {
-  const last = year === MAX_YEAR ? NOW.getMonth() + 1 : 12
-  return Array.from({ length: last }, (_, i) => ({ value: i + 1, label: `${i + 1} 月` }))
+/**
+ * 出生日期。年 → 月 → 日是一个问题，却在表单里是两个字段
+ * （birth_ym + birth_day），接线放在这里，免得 BasicFields 里再套一层。
+ */
+function BirthDateField({ control, errors }: SectionProps) {
+  const ymField = useController({ control, name: 'birth_ym' })
+  const dayField = useController({ control, name: 'birth_day' })
+  const ym = ymField.field.value
+  const day = dayField.field.value
+
+  const age = ageFromBirthYM(ym)
+  // 年龄仍然是按月的口径（ageFromBirthYM 只看到月），日不参与计算 ——
+  // 这里的日只是把生日写完整。
+  //
+  // 老档案只知道年月：说清「还差哪一天」，而不是把它当成一个错误。
+  const hint =
+    age === null
+      ? undefined
+      : day === null
+        ? `${formatBirthDate(ym, null)}，你现在 ${age} 岁。补上具体哪一天吧。`
+        : `${formatBirthDate(ym, day)}，你现在 ${age} 岁。`
+
+  return (
+    <Field label="出生日期" controlId="birth_date" group error={errors.birth_ym?.message} hint={hint}>
+      <BirthDatePicker
+        idBase="birth_date"
+        ym={ym}
+        day={day}
+        onChange={(next) => {
+          ymField.field.onChange(next.ym)
+          dayField.field.onChange(next.day)
+        }}
+      />
+    </Field>
+  )
 }
 
-/** 基本：昵称 · 性别 · 出生年月 · 城市。四项全是必填，也是入池门槛的头四项。 */
+/** 基本：昵称 · 性别 · 出生日期 · 城市。四项全是必填，也是入池门槛的头四项。 */
 export function BasicFields({ control, errors }: SectionProps) {
-  const birthYear = useWatch({ control, name: 'birth_year' })
-  const birthMonth = useWatch({ control, name: 'birth_month' })
-
-  const age =
-    birthYear !== null && birthMonth !== null ? ageFromBirthYM(birthYear * 100 + birthMonth) : null
-
   return (
     <div className="grid gap-5">
       <Controller
@@ -153,52 +171,18 @@ export function BasicFields({ control, errors }: SectionProps) {
         )}
       />
 
-      <Row>
-        <Controller
-          control={control}
-          name="birth_year"
-          render={({ field }) => (
-            <Field label="出生年份" controlId="birth_year" error={errors.birth_year?.message}>
-              <Select
-                value={field.value}
-                onChange={field.onChange}
-                options={YEAR_OPTIONS}
-                placeholder="请选择"
-              />
-            </Field>
-          )}
-        />
-        <Controller
-          control={control}
-          name="birth_month"
-          render={({ field }) => (
-            <Field
-              label="出生月份"
-              controlId="birth_month"
-              error={errors.birth_month?.message}
-              hint={age === null ? undefined : `按这个生日，你现在 ${age} 岁。`}
-            >
-              <Select
-                value={field.value}
-                onChange={field.onChange}
-                options={monthOptions(birthYear)}
-                placeholder="请选择"
-              />
-            </Field>
-          )}
-        />
-      </Row>
+      <BirthDateField control={control} errors={errors} />
 
       <Controller
         control={control}
         name="city_code"
         render={({ field }) => (
-          <Field label="所在城市" controlId="city_code" error={errors.city_code?.message} hint="引荐按城市圈定范围。">
-            <Select
+          <Field label="所在城市" controlId="city_code" group error={errors.city_code?.message} hint="引荐按城市圈定范围。">
+            <RegionPicker
+              idBase="city_code"
+              title="选择所在城市"
               value={field.value}
               onChange={field.onChange}
-              options={CITY_OPTIONS}
-              placeholder="请选择城市"
             />
           </Field>
         )}
@@ -207,58 +191,27 @@ export function BasicFields({ control, errors }: SectionProps) {
   )
 }
 
-/** 外形：身高 · 学历。硬条件过滤最常用的两项。 */
+/**
+ * 外形与教育：身高体重一行、学历学校一行。
+ *
+ * 学历和学校是同一件事的两面（在哪读的、读到什么程度），身高体重同理，
+ * 所以各自并排而不是上下排 —— 上下排会让人以为它们是两个互不相干的字段，
+ * 填完身高就翻过去了。体重与学校是选填，标了「选填」。
+ */
 export function FigureFields({ control, errors }: SectionProps) {
-  return (
-    <div className="grid gap-5">
-      <Controller
-        control={control}
-        name="height_cm"
-        render={({ field }) => (
-          <Field label="身高" controlId="height_cm" error={errors.height_cm?.message}>
-            <Select
-              value={field.value}
-              onChange={field.onChange}
-              options={HEIGHT_OPTIONS}
-              placeholder="请选择身高"
-            />
-          </Field>
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="education_level"
-        render={({ field }) => (
-          <Field label="学历" controlId="education_level" group error={errors.education_level?.message}>
-            <Segmented
-              value={field.value}
-              onChange={field.onChange}
-              options={EDUCATION_LEVELS}
-              columns={2}
-            />
-          </Field>
-        )}
-      />
-    </div>
-  )
-}
-
-/** 补充：全是选填，却占完整度的 40 分 —— 选填给足权重是有意的（§4.2）。 */
-export function MoreFields({ control, errors }: SectionProps) {
   return (
     <div className="grid gap-5">
       <Row>
         <Controller
           control={control}
-          name="hometown_code"
+          name="height_cm"
           render={({ field }) => (
-            <Field label="家乡" controlId="hometown_code" optional error={errors.hometown_code?.message}>
+            <Field label="身高" controlId="height_cm" error={errors.height_cm?.message}>
               <Select
                 value={field.value}
                 onChange={field.onChange}
-                options={CITY_OPTIONS}
-                placeholder="请选择"
+                options={HEIGHT_OPTIONS}
+                placeholder="请选择身高"
               />
             </Field>
           )}
@@ -285,12 +238,56 @@ export function MoreFields({ control, errors }: SectionProps) {
         />
       </Row>
 
+      <Row>
+        <Controller
+          control={control}
+          name="education_level"
+          render={({ field }) => (
+            <Field label="学历" controlId="education_level" group error={errors.education_level?.message}>
+              <Segmented
+                value={field.value}
+                onChange={field.onChange}
+                options={EDUCATION_LEVELS}
+                columns={2}
+              />
+            </Field>
+          )}
+        />
+        <Controller
+          control={control}
+          name="school_name"
+          render={({ field }) => (
+            <Field
+              label="毕业院校"
+              controlId="school_name"
+              optional
+              error={errors.school_name?.message}
+              hint="输入几个字就能找到，从列表里选。"
+            >
+              <SchoolSelect value={field.value} onChange={field.onChange} />
+            </Field>
+          )}
+        />
+      </Row>
+    </div>
+  )
+}
+
+/** 补充：全是选填，却占完整度的 40 分 —— 选填给足权重是有意的（§4.2）。 */
+export function MoreFields({ control, errors }: SectionProps) {
+  return (
+    <div className="grid gap-5">
       <Controller
         control={control}
-        name="school_name"
+        name="hometown_code"
         render={({ field }) => (
-          <Field label="毕业院校" controlId="school_name" optional error={errors.school_name?.message}>
-            <Input value={field.value} onChange={field.onChange} onBlur={field.onBlur} placeholder="学校全称" />
+          <Field label="家乡" controlId="hometown_code" group optional error={errors.hometown_code?.message}>
+            <RegionPicker
+              idBase="hometown_code"
+              title="选择家乡"
+              value={field.value}
+              onChange={field.onChange}
+            />
           </Field>
         )}
       />
