@@ -70,6 +70,33 @@ export const MARITAL_STATUSES = [
 ] as const
 
 /**
+ * 婚史接受度（偏好侧）。
+ *
+ * 「不接受」是 0 而不是缺省 —— 后端把 NULL 当「不限」，
+ * 而这是一个明确的表态。界面上是个开关，所以只有两项。
+ */
+export const DIVORCED_ACCEPTANCE = [
+  { value: 1, label: '接受' },
+  { value: 0, label: '不接受' },
+] as const
+
+/**
+ * 异地接受度（偏好侧）。
+ *
+ * 与婚史同理，只在偏好侧存一份：异地接受度是「我对关系形态的要求」，
+ * 不是「我未婚」那类关于自己的事实。同城时不参与判定。
+ */
+export const REMOTE_ACCEPTANCE = [
+  { value: 1, label: '接受' },
+  { value: 2, label: '不接受' },
+] as const
+
+/** 静默时段的钟点文案，`22` → `22:00`。 */
+export function hourLabel(h: number | null | undefined): string {
+  if (h === null || h === undefined) return ''
+  return `${String(h).padStart(2, '0')}:00`
+}
+/**
  * 城市列表。用的是国标 GB/T 2260 的 6 位代码，但只收了直辖市、
  * 省会与主要城市 —— 完整列表四百多条，建档向导不该让人滚到底。
  * 后端只校验 110000–659999 这个范围，所以补全列表不需要改后端。

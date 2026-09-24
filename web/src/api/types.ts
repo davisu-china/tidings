@@ -177,3 +177,54 @@ export interface Photo {
 export interface PhotoList {
   photos: Photo[]
 }
+
+/**
+ * 偏好（GET/PUT /me/preferences）。
+ *
+ * 全程「null = 不限」，这条约定要在三处一致：存储为空、打分时该维度
+ * 不进分母、界面上显示「不限」。所以这里的字段一律可空，
+ * 而不是用 0 或空串表示不限 —— 年龄下限 0 和「不限年龄」是两件事。
+ */
+export interface Preference {
+  age_min: number | null
+  age_max: number | null
+  city_codes: number[]
+
+  /** 我要求对方的婚育意愿 1 想要 / 2 不要 / 3 再说 */
+  want_child: number | null
+  /** 是否接受有婚史 0 不接受 / 1 接受 */
+  accept_divorced: number | null
+  /** 是否接受异地 1 接受 / 2 不接受 */
+  accept_remote: number | null
+
+  edu_min: number | null
+  height_min: number | null
+  height_max: number | null
+  income_min: number | null
+  income_max: number | null
+
+  /** 有没有一行偏好记录。全「不限」时为 false，界面据此给引导 */
+  configured: boolean
+}
+
+/** PUT 是整体替换：没传的字段即「不限」，没有「保持不变」这回事。 */
+export type PreferenceInput = Omit<Preference, 'configured'>
+
+/**
+ * 防打扰设置（GET/PUT /me/settings）。
+ *
+ * push_frozen / unopened_streak 是用户改不了的，只读回显 ——
+ * 推送被系统暂停却不说，用户只会以为推送坏了，然后去关通知权限，
+ * 那一步之后就再也回不来了。
+ */
+export interface Settings {
+  intros_paused: boolean
+  /** 静默时段起止小时，0–23。落在区间内的推送推迟到结束之后再发 */
+  quiet_start: number
+  quiet_end: number
+
+  push_frozen: boolean
+  unopened_streak: number
+}
+
+export type SettingsInput = Pick<Settings, 'intros_paused' | 'quiet_start' | 'quiet_end'>

@@ -173,6 +173,17 @@ type IntroConfig struct {
 	BatchSize int
 	// PoolMin 低于此值时暂停自动引荐，向用户明示池子在攒人。
 	PoolMin int
+
+	// ExpireInterval 是超时扫描循环周期（§15：1 分钟）。
+	//
+	// 可配不是为了生产调优 —— 生产就该是一分钟。是为了验收：
+	// §22 的 M4 判据写的是「把时限调到 1 分钟跑一遍」，而一轮扫描
+	// 本身不能等一分钟，否则那套断言每次跑都要挂满分钟级。
+	ExpireInterval time.Duration
+	// ExpireLease 是这一轮的租约，与 GenLease 同理，必须严格小于周期。
+	ExpireLease time.Duration
+	// ExpireBatch 是一轮最多终结几条（§15.3：200 行一轮，避免长事务）。
+	ExpireBatch int
 }
 
 func Load() (*Config, error) {
@@ -240,6 +251,10 @@ func Load() (*Config, error) {
 			GenLease:    envDuration("INTRO_GEN_LEASE", 4*time.Minute),
 			BatchSize:   envInt("INTRO_BATCH_SIZE", 3),
 			PoolMin:     envInt("INTRO_POOL_MIN", 100),
+
+			ExpireInterval: envDuration("INTRO_EXPIRE_INTERVAL", time.Minute),
+			ExpireLease:    envDuration("INTRO_EXPIRE_LEASE", 45*time.Second),
+			ExpireBatch:    envInt("INTRO_EXPIRE_BATCH", 200),
 		},
 
 		Timezone: env("TIMEZONE", "Asia/Shanghai"),
@@ -268,6 +283,13 @@ func (c *Config) validate() error {
 	if c.Intro.GenLease >= c.Intro.GenInterval {
 		return fmt.Errorf("INTRO_GEN_LEASE(%s) 必须小于 INTRO_GEN_INTERVAL(%s)，否则租约永不释放，生成任务会在第一轮之后静默停摆",
 			c.Intro.GenLease, c.Intro.GenInterval)
+	}
+	if c.Intro.ExpireLease >= c.Intro.ExpireInterval {
+		return fmt.Errorf("INTRO_EXPIRE_LEASE(%s) 必须小于 INTRO_EXPIRE_INTERVAL(%s)，否则租约永不释放，超时扫描会在第一轮之后静默停摆",
+			c.Intro.ExpireLease, c.Intro.ExpireInterval)
+	}
+	if c.Intro.ExpireBatch < 1 {
+		return fmt.Errorf("INTRO_EXPIRE_BATCH 至少为 1，当前 %d", c.Intro.ExpireBatch)
 	}
 	if c.Intro.BatchSize < 1 || c.Intro.BatchSize > 3 {
 		return fmt.Errorf("INTRO_BATCH_SIZE 必须在 1–3 之间，当前 %d", c.Intro.BatchSize)

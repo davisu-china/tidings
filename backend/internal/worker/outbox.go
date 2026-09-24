@@ -160,7 +160,21 @@ func (w *OutboxWorker) deliver(ctx context.Context, row repo.OutboxRow) error {
 	if lastErr != nil {
 		return w.retry(ctx, row, lastErr)
 	}
-	return w.Repo.MarkOutboxSent(ctx, row.ID)
+	if err := w.Repo.MarkOutboxSent(ctx, row.ID); err != nil {
+		return err
+	}
+
+	// 记一次「推了但没打开」（§4.5 的未响应冻结）。放在投递成功之后
+	// 而不是之前：推失败的通知不该算进去 —— 用户根本没机会打开它，
+	// 把他冻上是不讲理的。
+	//
+	// 失败只记日志，不把整条投递判成失败：通知已经送达了，
+	// 让它重发一遍才是真的打扰。计数丢一次，下次推送会补上。
+	if err := w.Repo.BumpUnopenedStreak(ctx, row.UserID); err != nil {
+		w.Log.WarnContext(ctx, "累加未打开计数失败",
+			slog.Int64("user_id", row.UserID), slog.Any("err", err))
+	}
+	return nil
 }
 
 func (w *OutboxWorker) retry(ctx context.Context, row repo.OutboxRow, cause error) error {

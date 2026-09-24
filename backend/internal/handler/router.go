@@ -109,6 +109,9 @@ func (h *Handler) Router(env string) *gin.Engine {
 		me.GET("/me/preferences", h.GetPreference)
 		me.PUT("/me/preferences", h.SavePreference)
 
+		me.GET("/me/settings", h.GetSettings)
+		me.PUT("/me/settings", h.SaveSettings)
+
 		// 订阅推送也不要求已建档：安装引导出现在建档完成之后、
 		// 请求授权之前（§19.5），那个时刻 status 刚变成 active，
 		// 但把它挡在这里只会多一个「刚好卡在中间」的失败窗口。

@@ -76,9 +76,17 @@ e2e-m3: ## M3 验收：表态 → 成匹配 → 互发消息（走真 HTTP 与�
 	@$(COMPOSE) exec -T redis redis-cli DEL auth:reg:ip:142.250.99.141 >/dev/null
 	cd $(BACKEND) && node scripts/e2e-m3.mjs
 
+.PHONY: e2e-m4
+e2e-m4: ## M4 验收：超时扫描 → 四类收尾通知 → 静默时段与未响应冻结
+	cd $(BACKEND) && node scripts/e2e-m4.mjs
+
 .PHONY: e2e-web
 e2e-web: ## 网页验收：注册 → 建档 → 入池（需要 vite dev server 在 5173）
 	cd web && node scripts/e2e-onboarding.mjs
+
+.PHONY: e2e-settings
+e2e-settings: ## 网页验收：偏好设置的读写与校验、通知与暂停（需要 vite dev server 在 5173）
+	cd web && node scripts/e2e-settings.mjs
 
 .PHONY: seed
 seed: ## 灌一批合格账号进池子（引荐引擎要有足够的人才会开始配）

@@ -21,9 +21,12 @@ type Preference struct {
 	UserID int64 `gorm:"primaryKey"`
 
 	// 硬条件 5 项
-	BirthYMMin     *int
-	BirthYMMax     *int
-	CityCodes      []int64 `gorm:"type:integer[];serializer:array"`
+	BirthYMMin *int
+	BirthYMMax *int
+	// 读写这个数组的是 repo.CityCodes 那套 Scan/Value（见其注释：
+	// 驱动把它当字符串交回来，GORM 又把切片参数展开成行构造式，
+	// 两头都得自己接）。这里的 type 只用于挡掉「切片 = 关联」的误判。
+	CityCodes      []int64 `gorm:"type:integer[]"`
 	WantChild      *int16
 	AcceptDivorced *int16
 	AcceptRemote   *int16

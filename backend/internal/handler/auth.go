@@ -104,6 +104,12 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
+	// 「他来了」就记在这里（§4.5：未响应冻结直到用户主动访问一次）。
+	// 挂在 /me 上是因为这是每次打开应用必然走的一条 —— 前端 rootLoader
+	// 拿它决定身份与落地页。放在引荐列表上不行：那个页面可能被
+	// 后台刷新反复取，而「访问一次」指的是人打开了应用。
+	h.svc.TouchVisit(c.Request.Context(), user)
+
 	res := meResp{
 		UserID:   user.ID,
 		Email:    user.Email,

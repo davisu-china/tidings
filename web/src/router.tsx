@@ -9,12 +9,14 @@ import { MePage, meLoader } from '@/routes/me'
 import { NotFoundPage } from '@/routes/notfound'
 import { OnboardingPage, onboardingLoader } from '@/routes/onboarding'
 import { PhotosPage, photosLoader } from '@/routes/photos'
+import { PreferencesPage, preferencesLoader } from '@/routes/preferences'
 import { ProfileEditPage, profileEditLoader } from '@/routes/profile-edit'
 import { Root, RootError, rootLoader } from '@/routes/root'
+import { SettingsPage, settingsLoader } from '@/routes/settings'
 
 /**
- * 页面清单见 §19.7。/me/preferences、/me/settings、/admin 还没有接口，
- * 先不建空壳页面：一个点进去什么都没有的入口比没有入口更糟。
+ * 页面清单见 §19.7。/admin 还没有接口，先不建空壳页面：
+ * 一个点进去什么都没有的入口比没有入口更糟。
  */
 export const router = createBrowserRouter([
   {
@@ -44,6 +46,8 @@ export const router = createBrowserRouter([
       { path: 'me', loader: meLoader, Component: MePage },
       { path: 'me/edit', loader: profileEditLoader, Component: ProfileEditPage },
       { path: 'me/photos', loader: photosLoader, Component: PhotosPage },
+      { path: 'me/preferences', loader: preferencesLoader, Component: PreferencesPage },
+      { path: 'me/settings', loader: settingsLoader, Component: SettingsPage },
     ],
   },
   { path: '*', Component: NotFoundPage },

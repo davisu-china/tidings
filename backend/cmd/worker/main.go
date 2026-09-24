@@ -4,9 +4,7 @@
 // 一份都不复制。这样 worker 里发生的每一次写入，走的都是 api 用的
 // 那套校验和事务边界，不会出现「后台任务绕过了某条规则」这类问题。
 //
-// 三个循环里只起两个：outbox（2 秒）与 generate（5 分钟）。
-// expire（1 分钟）属于 M4 —— M2 的引荐只生成、不终结，
-// 所以现在还没有到期扫描。这次不加。
+// 三个循环都在这里：outbox（2 秒）、generate（5 分钟）、expire（1 分钟）。
 package main
 
 import (
@@ -99,6 +97,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	exp, err := worker.NewExpireWorker(svc, log,
+		cfg.Intro.ExpireInterval, cfg.Intro.ExpireLease, cfg.Intro.ExpireBatch)
+	if err != nil {
+		log.Error("初始化超时扫描任务失败", "err", err)
+		os.Exit(1)
+	}
+
 	// 没配 VAPID 时不阻断启动，只是推送发不出去：开发环境跑通
 	// 生成链路（引荐落库、outbox 有行）本身就是有价值的，
 	// 而生产环境缺密钥在 config 校验里已经硬失败了。
@@ -124,6 +129,9 @@ func main() {
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return gen.Run(ctx) })
+	// 超时扫描与推送无关：它只改库里的状态、往 outbox 入队。
+	// 没配 VAPID 时它照跑 —— 开发环境正是靠它把引荐推到终结状态。
+	g.Go(func() error { return exp.Run(ctx) })
 	if outbox != nil {
 		g.Go(func() error { return outbox.Run(ctx) })
 	}

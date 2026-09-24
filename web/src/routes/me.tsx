@@ -170,6 +170,8 @@ export function MePage() {
               : `${profile.photo_count} 张，还差 ${3 - profile.photo_count} 张`
           }
         />
+        <EntryLink to="/me/preferences" label="偏好设置" hint="硬条件 5 项、软偏好 3 项" />
+        <EntryLink to="/me/settings" label="通知与暂停" hint="静默时段、暂停接收引荐" />
       </nav>
 
       <PushSetting />

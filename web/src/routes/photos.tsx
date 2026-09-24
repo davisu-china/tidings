@@ -14,9 +14,8 @@ export async function photosLoader() {
 /**
  * 照片管理。九宫格 + 第一张即封面。
  *
- * 拖拽排序还没做 —— 后端 PUT /me/photos/order 已经就绪，缺的是前端这一层：
- * 触屏上的拖拽要引入 @dnd-kit 并单独处理滚动冲突与键盘操作，
- * 而建档流程不依赖它（上传顺序就是展示顺序）。等有人真的抱怨了再做。
+ * 拖拽排序在 SortablePhotoGrid 里：@dnd-kit 的三套传感器（鼠标 8px 起拖、
+ * 触屏按住 200ms 才算拖、键盘空格起落），顺序即存即发，没有「保存顺序」按钮。
  */
 export function PhotosPage() {
   const initial = useLoaderData() as { profile: Profile; photos: Photo[] }

@@ -3,8 +3,11 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -35,18 +38,18 @@ type CandidateRow struct {
 	CreatedAt    time.Time  `gorm:"column:created_at"`
 
 	// 对方的偏好（LEFT JOIN 回来，可能整片为 NULL）
-	PrefBirthYMMin *int    `gorm:"column:pref_birth_ym_min"`
-	PrefBirthYMMax *int    `gorm:"column:pref_birth_ym_max"`
-	PrefCityCodes  []int64 `gorm:"column:pref_city_codes"`
-	PrefWantChild  *int16  `gorm:"column:pref_want_child"`
-	PrefDivorced   *int16  `gorm:"column:pref_accept_divorced"`
-	PrefRemote     *int16  `gorm:"column:pref_accept_remote"`
-	PrefEduMin     *int16  `gorm:"column:pref_edu_min"`
-	PrefHeightMin  *int16  `gorm:"column:pref_height_min"`
-	PrefHeightMax  *int16  `gorm:"column:pref_height_max"`
-	PrefIncomeMin  *int16  `gorm:"column:pref_income_min"`
-	PrefIncomeMax  *int16  `gorm:"column:pref_income_max"`
-	PrefExists     bool    `gorm:"column:pref_exists"`
+	PrefBirthYMMin *int      `gorm:"column:pref_birth_ym_min"`
+	PrefBirthYMMax *int      `gorm:"column:pref_birth_ym_max"`
+	PrefCityCodes  CityCodes `gorm:"column:pref_city_codes;type:integer[]"`
+	PrefWantChild  *int16    `gorm:"column:pref_want_child"`
+	PrefDivorced   *int16    `gorm:"column:pref_accept_divorced"`
+	PrefRemote     *int16    `gorm:"column:pref_accept_remote"`
+	PrefEduMin     *int16    `gorm:"column:pref_edu_min"`
+	PrefHeightMin  *int16    `gorm:"column:pref_height_min"`
+	PrefHeightMax  *int16    `gorm:"column:pref_height_max"`
+	PrefIncomeMin  *int16    `gorm:"column:pref_income_min"`
+	PrefIncomeMax  *int16    `gorm:"column:pref_income_max"`
+	PrefExists     bool      `gorm:"column:pref_exists"`
 }
 
 // CandidateQuery 是候选集召回的全部入参。
@@ -293,20 +296,95 @@ func (r *Repo) GetPreference(ctx context.Context, uid int64) (*PrefRow, error) {
 	return &rows[0], nil
 }
 
+// CityCodes 是 preferences.city_codes 那一列（integer[]）。
+//
+// 为什么要单独一个类型，而不是继续用 []int64：
+//
+//  1. 读不出来。pgx 把 integer[] 原样交回来的是一个字符串（`{310000,330100}`），
+//     直接 Scan 进 []int64 会报
+//     「unsupported Scan, storing driver.Value type string into type *[]int64」。
+//     GORM 文档里的 `serializer:array` 在这个驱动组合下并不存在 ——
+//     gorm core 只注册了 json / unixtime / gob，写了只会换来一句
+//     「invalid serializer type array」，比不写还糟：错误来得更晚。
+//  2. 写不进去。GORM 见到切片会把参数展开成行构造式 (?,?,?)，Postgres
+//     收到的是 record 而不是 integer[]，报
+//     「column "city_codes" is of type integer[] but expression is of type record」。
+//     实现 driver.Valuer 之后会走 Statement.AddVar 里的 driver.Valuer 分支，
+//     原样交给驱动（那个分支在按反射展开切片之前，见 gorm 的 statement.go）。
+//  3. 空值语义。空必须写成 NULL 而不是 `{}`：筛选条件写的是
+//     `city_codes IS NULL OR ? = ANY(city_codes)`，「不限」靠的是前半句。
+//     存成空数组的话前半句不成立、ANY('{}') 对谁都是假，这个人会谁都匹配不上 ——
+//     「没选城市」于是变成了「哪个城市都不行」。
+//
+// 值都是城市代码（int64），不含逗号与花括号，转义问题不存在。
+type CityCodes []int64
+
+// Scan 解析 `{310000,330100}`。NULL 与空数组都读成 nil，与「不限」对齐。
+func (c *CityCodes) Scan(src any) error {
+	var s string
+	switch v := src.(type) {
+	case nil:
+		*c = nil
+		return nil
+	case string:
+		s = v
+	case []byte:
+		s = string(v)
+	default:
+		return fmt.Errorf("city_codes: 读不出 %T", src)
+	}
+	s = strings.TrimSpace(s)
+	if s == "" || s == "{}" {
+		*c = nil
+		return nil
+	}
+	if len(s) < 2 || s[0] != '{' || s[len(s)-1] != '}' {
+		return fmt.Errorf("city_codes: %q 不是数组字面量", s)
+	}
+	parts := strings.Split(s[1:len(s)-1], ",")
+	codes := make([]int64, 0, len(parts))
+	for _, p := range parts {
+		n, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64)
+		if err != nil {
+			return fmt.Errorf("city_codes: %q 不是城市代码", p)
+		}
+		codes = append(codes, n)
+	}
+	*c = codes
+	return nil
+}
+
+// Value 编回数组字面量；空列表给 NULL（= 不限，理由见类型注释第 3 条）。
+func (c CityCodes) Value() (driver.Value, error) {
+	if len(c) == 0 {
+		return nil, nil
+	}
+	parts := make([]string, len(c))
+	for i, n := range c {
+		parts[i] = strconv.FormatInt(n, 10)
+	}
+	return "{" + strings.Join(parts, ",") + "}", nil
+}
+
 // PrefRow 与 preferences 表一一对应。
+//
+// city_codes 上的 type:integer[] 不能省：GORM 解析结构体时，
+// 没有 DataType 的切片字段会被当成**关联**（一对多）去解析，
+// 于是拿 []int64 当模型再解析一次，报
+// 「failed to parse field: CityCodes, error: unsupported data type」。
 type PrefRow struct {
-	UserID         int64   `gorm:"column:user_id"`
-	BirthYMMin     *int    `gorm:"column:birth_ym_min"`
-	BirthYMMax     *int    `gorm:"column:birth_ym_max"`
-	CityCodes      []int64 `gorm:"column:city_codes"`
-	WantChild      *int16  `gorm:"column:want_child"`
-	AcceptDivorced *int16  `gorm:"column:accept_divorced"`
-	AcceptRemote   *int16  `gorm:"column:accept_remote"`
-	EduMin         *int16  `gorm:"column:edu_min"`
-	HeightMin      *int16  `gorm:"column:height_min"`
-	HeightMax      *int16  `gorm:"column:height_max"`
-	IncomeMin      *int16  `gorm:"column:income_min"`
-	IncomeMax      *int16  `gorm:"column:income_max"`
+	UserID         int64     `gorm:"column:user_id"`
+	BirthYMMin     *int      `gorm:"column:birth_ym_min"`
+	BirthYMMax     *int      `gorm:"column:birth_ym_max"`
+	CityCodes      CityCodes `gorm:"column:city_codes;type:integer[]"`
+	WantChild      *int16    `gorm:"column:want_child"`
+	AcceptDivorced *int16    `gorm:"column:accept_divorced"`
+	AcceptRemote   *int16    `gorm:"column:accept_remote"`
+	EduMin         *int16    `gorm:"column:edu_min"`
+	HeightMin      *int16    `gorm:"column:height_min"`
+	HeightMax      *int16    `gorm:"column:height_max"`
+	IncomeMin      *int16    `gorm:"column:income_min"`
+	IncomeMax      *int16    `gorm:"column:income_max"`
 }
 
 // UpsertPreference 整行覆盖。偏好是「当前要求」，没有历史价值，
