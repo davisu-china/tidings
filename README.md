@@ -67,8 +67,9 @@ MVP 文档范围内另有 **2 项**，集中在它的第 23 节。文档已按�
 - 登录注册：**邮箱 + 密码**（bcrypt 代价因子 12），JWT 双 token。无验证码、无自助找回、无邮箱验证 —— MVP 只有 Web Push 一条外发通道。忘记密码走后台重置
 - 代码：**M0（地基）与 M1（能注册能建档）已写完**，`gofmt` / `go vet` / `go build` / `go test` 均通过
   - M0：`make up` 后 `/healthz` 的三个依赖都是 ok
-  - M1：真机走完「注册 → 建档 → 传头像与 3 张照片 → `status` 翻 `active`」；
-    后台重置密码后旧 token 立即失效、新密码能登录（62 项冒烟断言全通过）
+  - M1：真机走完「注册 → 建档 → 传头像与照片 → `status` 翻 `active`」；
+    后台重置密码后旧 token 立即失效、新密码能登录（`web/scripts/e2e-*.mjs` 的冒烟断言全通过；
+    入池只要求 1 张照片，`status` 在第 1 张落库时就翻）
 
 ## 本地启动
 
@@ -83,12 +84,12 @@ make down
 | 服务 | host 端口 |
 | --- | --- |
 | api | 8081 |
-| PostgreSQL | 5433 |
+| PostgreSQL | 5434 |
 | Redis | 6380 |
 | MinIO S3 API / 控制台 | 9200 / 9201 |
 | 图片入口（nginx 反代 MinIO） | 8093 |
 
-> 若 5433 已被别的容器占用，可以只放掉这个宿主机端口映射 —— 容器之间
+> 若 5434 已被别的容器占用，可以只放掉这个宿主机端口映射 —— 容器之间
 > 走 compose 内网，冒烟测试不需要它：
 > `docker compose -f deploy/docker-compose.yml -f <override> up -d`，
 > override 里写 `services.postgres.ports: !reset []`。
@@ -99,12 +100,52 @@ make down
 
 iOS 上 Safari 普通标签页收不到 Web Push，**只有把站点「添加到主屏幕」之后才行**（iOS 16.4+）。对一个推送即产品的应用，安装引导是触达链路的必需环节 —— 见 MVP 文档 19.5。
 
+## 部署（生产）
+
+站点：**https://tidings.jianjiange.site**（京东云 111.228.14.136，与不将就、jianjiange.site 同一台机器）
+
+```bash
+deploy/deploy.sh          # 或 make deploy-prod
+make seed-prod            # 灌池子：默认 120 个上海人，分批绕开单 IP 注册上限
+```
+
+`deploy.sh` 做四件事，全部幂等：
+
+1. rsync 源码到 `/opt/tidings`（服务器上那份 `deploy/.env` 不动）
+2. 首次生成 `.env`：`JWT_SECRET` / `ADMIN_TOKEN` / 数据库与 MinIO 口令一律 `openssl` 级别随机，
+   VAPID 密钥对现场生成 —— `.env.example` 里的占位值都公开在仓库里，带着它们上线等于没有鉴权
+3. `docker compose -f docker-compose.prod.yml up -d --build`，等 api 健康
+4. 签证书（复用宿主机共享 nginx 的 certbot webroot），把 `deploy/nginx/tidings.conf`
+   那段 vhost 合进 `/opt/jianjian/deploy/nginx/nginx.conf` 并 reload
+
+生产编排与本地那份是**两份独立文件**（`docker-compose.prod.yml`），不是 override：
+compose 的 `ports` 是追加语义，override 去不掉本地那份里已发布的 5434/6380/9200 ——
+那等于把数据库和 MinIO 控制台挂到公网。生产这份里：
+
+- 宿主机端口一律绑 `127.0.0.1`（web 8181 / api 8182 / media 8183），公网只能经共享 nginx 进来
+- 只有 web / api / media 接外部网络 `dev-ops_my-network`（nginx 按容器名反代），
+  postgres / redis / minio **只接本站私有网络** —— 它们的服务名会变成网络别名，
+  一旦出现在共享网络上，别的站解析到的 `postgres` / `redis` 就被顶掉了
+- 域名相关的四项（`APP_ENV` / `MEDIA_BASE_URL` / `MINIO_PUBLIC_ENDPOINT` / `MINIO_PUBLIC_USE_SSL`）
+  写死在编排里，不指望 `.env` 抄对：抄漏一项的症状是「照片传上去了但显示不出来」
+
+改共享 nginx 的两个坑：
+
+- `/opt/jianjian/deploy/nginx/nginx.conf` 在容器里是**只读文件挂载**。必须原地覆盖
+  （`cat new > old` / `cp`），`sed -i` 会换 inode，容器读到的还是旧文件 —— 表现成「改了没生效」
+- 证书没签出来之前**不要**把 vhost 合进去：那段配置引用证书文件，`nginx -t` 会失败，
+  一 reload 就把同机器上所有站点一起弄挂。`deploy.sh` 因此把这一步挡在证书检查之后
+
+DNS 是外部依赖：`tidings.jianjiange.site` 需要一条 A 记录指向 111.228.14.136
+（Cloudflare，代理状态 **DNS only**）。没这条记录时证书签不出来，站点停在 HTTP，
+`deploy.sh` 会明确提示，DNS 生效后重跑即可。
+
 ## 目录结构
 
 ```
 docs/          产品文档
-backend/       Go 服务（cmd/api，internal/{config,handler,repo,service}，migrations）
-deploy/        docker-compose、nginx、.env.example
-web/           前端（尚未开工）
+backend/       Go 服务（cmd/api、cmd/worker，internal/{config,handler,repo,service}，migrations）
+deploy/        docker-compose（dev 与 prod 两份）、nginx、deploy.sh、.env.example
+web/           前端（React 19 + Tailwind v4 + PWA，Dockerfile 构建静态产物）
 Makefile
 ```

@@ -499,7 +499,7 @@
             </thead>
             <tbody>
               <tr><td><strong>注册登录</strong></td><td>邮箱 + 密码（bcrypt），JWT 双 token。<strong>无验证码、无找回、无邮箱验证</strong></td><td class="mono">—</td></tr>
-              <tr><td><strong>建档</strong></td><td>6 项必填 + 头像 + ≥3 张照片入池；12 项选填构成深度档案。分步保存且<strong>可续填</strong></td><td class="mono">5.2 · 5.5</td></tr>
+              <tr><td><strong>建档</strong></td><td>6 项必填 + 头像 + ≥1 张照片入池；12 项选填构成深度档案。分步保存且<strong>可续填</strong></td><td class="mono">5.2 · 5.5</td></tr>
               <tr><td><strong>偏好</strong></td><td>硬条件 5 项 + 软偏好 3 项（学历 / 身高 / 收入带），单一阈值，不做严格程度三档</td><td class="mono">6.1 · 决策 02 延后</td></tr>
               <tr><td><strong>匹配</strong></td><td><strong>规则打分，非 AI</strong>。硬条件过滤 → 双向分数 → 取够格的对</td><td class="mono">7.1 的规则版</td></tr>
               <tr><td><strong>引荐</strong></td><td>成对优先；池子不足时按 2.4 阶梯降级为单向。生命周期五态 + 过期扫描</td><td class="mono">决策 13 · 3.1</td></tr>
@@ -551,7 +551,7 @@
 
   邮箱注册 ────────────►  建 users 行，status = onboarding
      │
-  建档 6 项必填 + 头像 + ≥3 张照片
+  建档 6 项必填 + 头像 + ≥1 张照片
      │                          completeness 重算
      └──────────────────►  missing_required 为空 → status = active
                                      │
@@ -632,7 +632,7 @@
               <tr><td class="mono">nickname</td><td>2–12 字，过滤联系方式</td><td>引荐卡上要有称呼</td></tr>
               <tr><td class="mono">gender</td><td>M / F，<strong>设定后不可改</strong></td><td>决定异性匹配，改它等于换一个账号</td></tr>
               <tr><td class="mono">birth_ym</td><td>YYYYMM，18–60 岁</td><td>年龄是硬条件的基础</td></tr>
-              <tr><td class="mono">city_code</td><td>国标 6 位，110000–659999</td><td>地域是硬条件的基础</td></tr>
+              <tr><td class="mono">city_code</td><td>国标 6 位，110000–829999</td><td>地域是硬条件的基础</td></tr>
               <tr><td class="mono">height_cm</td><td>140–210</td><td>软偏好可筛，不填等于放弃一项匹配信号</td></tr>
               <tr><td class="mono">education_level</td><td>大专及以下 / 本科 / 硕士 / 博士</td><td>同上</td></tr>
               <tr><td class="mono">avatar_key</td><td>一张通过审核的头像</td><td>没有脸的引荐卡没人会点</td></tr>
@@ -640,7 +640,13 @@
           </table>
         </div>
 
-        <p>照片另算：<strong>≥3 张</strong>才入池。头像单独判，它不在 <code>profiles</code> 的标量字段里，沿用 <code>stubborn-love</code> 的做法。</p>
+        <p>照片另算：<strong>≥1 张</strong>才入池。头像单独判，它不在 <code>profiles</code> 的标量字段里，沿用 <code>stubborn-love</code> 的做法。</p>
+
+        <p>门槛从 3 张降到 1 张（v1.4）：首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外。照片信息量不足会压低响应率这个理由没有消失，但它现在是<strong>建议</strong>而不是门槛 —— 前端照 3 张的软目标催（<code class="mono">PHOTO_GOAL</code>），后端只认 1。<strong>引荐卡的封面取 <code class="mono">position = 0</code> 那一张</strong>，所以 1 张的卡是完整的卡，不是残缺的卡。</p>
+
+        <p>照片数<strong>不进 <code class="mono">completeness</code></strong>（与 <code class="mono">birth_day</code> 同理），所以这次改动不碰候选集的 <code class="mono">completeness &gt;= 60</code> 门槛，也不需要迁移。另有一条保护：<strong>最后一张照片不给删</strong>（<code class="mono">LAST_PHOTO</code>）—— 删照片不会把 <code class="mono">status</code> 退回 <code class="mono">onboarding</code>（那是有意的，已建立的引荐不该失效），所以「在池子里却没有封面」这个状态必须事前拦住。换照片的路径是「先传新的，再删旧的」。</p>
+
+        <p><code class="mono">birth_day</code>（出生日 1–31）<strong>不在门槛里</strong>，也不进完成度。它是界面上「出生日期」三级联动的第三级（年 → 月 → 日），只把生日显示完整。年龄始终按 <code class="mono">birth_ym</code> 的月粒度算，日不参与任何计算：加进门槛会让存量老用户（只知道年月）的完成度掉到门槛以下，静默掉出候选池。</p>
 
         <h4>深度档案门槛（第二段，选填 12 项）</h4>
 
@@ -1098,6 +1104,7 @@
     nickname         TEXT,
     gender           CHAR(1),
     birth_ym         INTEGER,          <span class="c">-- 如 199505</span>
+    birth_day        SMALLINT,         <span class="c">-- 1–31，可空 = 只知道年月</span>
     city_code        INTEGER,
     height_cm        SMALLINT,
     education_level  SMALLINT,         <span class="c">-- 1..4</span>
@@ -1135,6 +1142,18 @@
     <span class="k">CONSTRAINT</span> p_tier_chk   <span class="k">CHECK</span> (school_tier <span class="k">BETWEEN</span> 1 <span class="k">AND</span> 5),
     <span class="k">CONSTRAINT</span> p_income_chk <span class="k">CHECK</span> (income_band <span class="k">BETWEEN</span> 1 <span class="k">AND</span> 6),
     <span class="k">CONSTRAINT</span> p_birth_chk  <span class="k">CHECK</span> (birth_ym <span class="k">BETWEEN</span> 190001 <span class="k">AND</span> 299912),
+    <span class="c">-- 日的合法性依赖年月（闰年 2/29、小月 30），整张日历写进库里：</span>
+    <span class="c">-- service 之上还有手工 SQL 与后台改数。用 CASE 而不是 make_date()，</span>
+    <span class="c">-- 后者遇到非法日期是抛错(22008)，在 CHECK 里会变成一句与约束无关的报错。</span>
+    <span class="k">CONSTRAINT</span> p_birth_day_chk <span class="k">CHECK</span> (
+        birth_day <span class="k">IS NULL OR</span> (
+            birth_ym <span class="k">IS NOT NULL AND</span> birth_day &gt;= 1 <span class="k">AND</span> birth_day &lt;= <span class="k">CASE</span> birth_ym % 100
+                <span class="k">WHEN</span> 2 <span class="k">THEN CASE WHEN</span> (birth_ym / 100) % 4 = 0
+                                  <span class="k">AND</span> ((birth_ym / 100) % 100 &lt;&gt; 0 <span class="k">OR</span> (birth_ym / 100) % 400 = 0)
+                             <span class="k">THEN</span> 29 <span class="k">ELSE</span> 28 <span class="k">END</span>
+                <span class="k">WHEN</span> 4 <span class="k">THEN</span> 30 <span class="k">WHEN</span> 6 <span class="k">THEN</span> 30
+                <span class="k">WHEN</span> 9 <span class="k">THEN</span> 30 <span class="k">WHEN</span> 11 <span class="k">THEN</span> 30
+                <span class="k">ELSE</span> 31 <span class="k">END</span>)),
     <span class="k">CONSTRAINT</span> p_gender_chk <span class="k">CHECK</span> (gender <span class="k">IN</span> (<span class="s">'M'</span>,<span class="s">'F'</span>))
 );
 
@@ -2204,6 +2223,8 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
         <ul>
           <li>表单控件沿用文档的克制风格：1px 线框输入框、4px 圆角、focus 时边框转 accent（不用外发光环）</li>
           <li>连续数值（身高、收入区间）用<strong>滚轮选择器</strong>，不用滑块。滑块在手机上很难精确停在 165</li>
+          <li>出生日期、所在城市、家乡各是<strong>一个</strong>字段，点开是<strong>底部弹层</strong>，里面是滚轮。出生日期一屏三列（年 | 月 | 日），城市和家乡一屏两列（省 | 市，滚省时右边的市整列跟着换）。不做「三个并排的下拉」——同一个问题摊成三个控件，用户得依次点开三次系统滚轮，而两列并排还能让「先省后市」这个层级关系一眼看得见。点「完成」才落库，滚轮只改弹层里的草稿（见 5.3「省市两级弹层」）</li>
+          <li>自绘滚轮比原生控件对键盘和读屏更不友好，这是它的代价：列容器挂 <code class="mono">role="listbox"</code>、选项挂 <code class="mono">role="option"</code> 并支持方向键 / PageUp / PageDown / Home / End，弹层本身有焦点陷阱、Escape 关闭与背景滚动锁。弹层<strong>不做入场动画</strong>——全站唯一的动效是印章（19.3）</li>
           <li>进度用真话表达：「档案 45%，还差 4 项」，并逐项列出缺什么、影响什么。<strong>不写「完善资料」</strong></li>
           <li>每一步提交即保存（<code>PUT /me/profile</code> 局部更新），顶部不设「保存」按钮</li>
         </ul>
@@ -2518,7 +2539,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
               <tr>
                 <td><strong>M1 · 能注册能建档</strong></td>
                 <td>邮箱 + 密码注册登录（bcrypt）+ JWT 双 token；后台重置密码接口；建档接口；照片预签名直传 + 派生图；完整度计算</td>
-                <td>真机走完注册 → 建档 → 传 3 张照片 → <code>status</code> 翻成 <code>active</code>；忘记密码走后台重置能重新登录</td>
+                <td>真机走完注册 → 建档 → 传 <strong>1 张</strong>照片即翻 <code>status = active</code>，再传至 3 张验证排序；忘记密码走后台重置能重新登录</td>
               </tr>
               <tr>
                 <td><strong>M2 · 能生成引荐</strong></td>
@@ -2590,11 +2611,13 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
       </section>
 
       <p class="foot">
-        Tidings · 有信 · MVP 产品需求与技术方案 v1.3 · 2026-09-24<br>
+        Tidings · 有信 · MVP 产品需求与技术方案 v1.5 · 2026-09-24<br>
         上游为完整版 PRD v0.6（<code>docs/prd.html</code>）；本册的技术方案已细化到可开工，产品范围已收窄到可交付。<br>
         v1.1 变更：前端由 Vue 3 + 纯 CSS 改为 React 19 + Tailwind v4 + shadcn/ui，新增信纸体系设计系统（19.1）、关键界面（19.2）、印章动效（19.3）、响应式（19.4）与 iPhone 安装引导（19.5）。<br>
         v1.2 变更：注册登录由手机号 + 短信验证码改为<strong>邮箱 + 密码</strong>。MVP 因此只有 Web Push 一条外发通道 —— 无验证码、无自助找回、无邮箱验证，涉及 4.1 / 7 / 8 / 10.1 / 11 / 17 / 18 / 19.7 / 20 / 21 / 22 / 23 各节。<br>
         v1.3 变更（M1 落地后的回填）：Go 1.25 → <strong>1.26</strong>（<code>x/crypto</code> 及其拉起的 <code>x/sys</code> / <code>x/text</code> 要求 1.26，容器基础镜像同步）；图片输入<strong>加收 PNG</strong>，输出仍是 JPEG 三档（17 章、§21）；新增<strong>直传孤儿对象</strong>风险条目（§21），并写明「照片先审后发、文本先审」实际要等 M5 的审核队列，M1–M4 唯一在跑的自动门槛是人脸检测（§4.1、§21）；<strong>照片人脸检测提前进 M1</strong>，但只用于头像（§3）；18.2 的建档与媒体接口按实现改写（<code>PATCH</code> 而非 <code>PUT</code>、<code>PUT /me/avatar</code>、<code>PUT /me/photos/order</code>）；18.4 写明 <code>X-Admin-Token</code> 头的选择理由。<br>
+        v1.4 变更：<strong>入池照片门槛 3 张 → 1 张</strong>（4.1、4.2、7 章、M1 验收）。首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外；引荐卡只取第 1 张当封面，1 张的卡是完整的卡，多传照片从门槛降级为建议。随之新增 <code>LAST_PHOTO</code> 保护：删掉最后一张会让池子里出现没有封面的用户，服务端直接拒绝（删照片本来就不会把 <code>status</code> 退回 onboarding，所以这道拦截是必须的，不是冗余）。照片不进 <code>completeness</code>，这次改动不涉及「完整度 ≥ 60」那条红线，也不需要迁移。<br>
+        v1.5 变更（19.2 建单向导）：<strong>出生日期、所在城市、家乡各收成一个字段 + 底部弹层滚轮</strong>。这不是新设计，是把 5.3 早就定下的「SheetPicker / WheelPicker」与「省市两级弹层」补进实现 —— M1 落地时为赶进度用的原生 <code>select</code>（年 / 月 / 日三个、省 / 市两个）在 19.2 里没有对应条目，这次一并改写。出生日期一屏三列、城市与家乡一屏两列（先省后市）；点「完成」才落库，Escape / 取消 / 点遮罩丢弃草稿。同时补上了自绘滚轮欠下的可达性（<code>role="listbox"</code> + 方向键、弹层焦点陷阱、Escape、背景滚动锁）——原生 <code>select</code> 本来用键盘就能操作，换成滚轮是一次真实的可达性回退，这几条是补丁不是等价物。弹层<strong>不做入场动画</strong>，理由同 19.3：全站唯一的动效是印章，它靠稀缺性成立。后端与字段契约（<code>birth_ym</code> / <code>birth_day</code> / <code>city_code</code>）一行未动，18.2 不受影响。<br>
         文档内所有数值均为判断起点，非承诺；标注 <span class="pill todo">待确认</span> 者未获用户表态。
       </p>
 
