@@ -1,0 +1,250 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   信纸体系
+   三条克制规则（破了任何一条，界面就退回成 Tailwind 默认长相）：
+     1. 圆角 ≤ 4px —— 纸不圆
+     2. 不用投影分层，用 1px 发丝线和色差 —— 纸是平的
+     3. 红色只给印章 —— 错过/失败/拒绝一律用灰，绝不加红
+   ============================================================ */
+
+/* 浅色是基准，三个主题态都从这里推导。
+   深色的值不在文档里（文档写的是「…同上，换深色值…」），
+   这里按同样的关系推：底是墨绿灰而不是纯黑，朱砂提亮但仍是朱砂。 */
+:root {
+  --paper: #eff1ec;
+  --surface: #ffffff;
+  --surface-2: #e7eae4;
+  --ink: #151c1b;
+  --ink-2: #35403e;
+  --muted: #5a6866;
+  --line: #d6dad3;
+  --line-soft: #e4e7e1;
+  --accent: #1b6a60;
+  --accent-ink: #12544c;
+  --accent-soft: #dce8e4;
+  --seal: #9e3928;
+  --seal-soft: #f0e1dd;
+  --on-accent: #ffffff;
+
+  /* 浮层才允许有投影 —— 它们确实浮在纸面上。
+     唯一用到这一档的是下拉与弹层。 */
+  --overlay-shadow: 0 6px 24px -8px rgb(21 28 27 / 0.18);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #121715;
+    --surface: #1a211f;
+    --surface-2: #232b29;
+    --ink: #e8ebe6;
+    --ink-2: #c2c9c5;
+    --muted: #8b9693;
+    --line: #2e3835;
+    --line-soft: #232b29;
+    --accent: #5fb3a6;
+    --accent-ink: #8fd3c8;
+    --accent-soft: #1e3633;
+    --seal: #c2604c;
+    --seal-soft: #3a241f;
+    /* 深色底上的 accent 是浅青，压在上面的字必须是深的 */
+    --on-accent: #0c1312;
+    --overlay-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.5);
+
+    color-scheme: dark;
+  }
+}
+
+/* 用户显式选了深色时必须覆盖系统设置，所以这一份要独立再写一遍 */
+:root[data-theme='dark'] {
+  --paper: #121715;
+  --surface: #1a211f;
+  --surface-2: #232b29;
+  --ink: #e8ebe6;
+  --ink-2: #c2c9c5;
+  --muted: #8b9693;
+  --line: #2e3835;
+  --line-soft: #232b29;
+  --accent: #5fb3a6;
+  --accent-ink: #8fd3c8;
+  --accent-soft: #1e3633;
+  --seal: #c2604c;
+  --seal-soft: #3a241f;
+  --on-accent: #0c1312;
+  --overlay-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.5);
+
+  color-scheme: dark;
+}
+
+/* inline 让工具类引用变量本身，而不是在构建期把值抄进去 ——
+   少了 inline，bg-paper 会编译成一个写死的 #EFF1EC，主题切换直接失效。 */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-seal: var(--seal);
+  --color-seal-soft: var(--seal-soft);
+  --color-on-accent: var(--on-accent);
+
+  /* 系统字体栈，不加载任何网络字体：思源宋体走 CDN 在大陆基本等于没有，
+     而 iPhone / Mac 自带 Songti SC、Windows 自带宋体，都是真宋体。
+     代价是安卓没有宋体，会退到黑体。 */
+  --font-serif: 'Songti SC', 'SimSun', 'Noto Serif SC', 'Source Han Serif SC', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
+    'Noto Sans SC', 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'JetBrains Mono', monospace;
+
+  --radius-card: 4px;
+  --radius-seal: 2px;
+}
+
+@layer base {
+  /* Tailwind v4 的默认边框色是 currentColor，很容易画出「黑框」。
+     统一退回发丝线色，个别地方再显式覆盖。 */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--line);
+  }
+
+  html {
+    /* 关掉 iOS 横屏时自动放大字号 */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    /* 必须显式给底色：宿主环境可能画的是白底，透明 body 会露出来 */
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /* 输入框获得焦点时 iOS 会整页放大，除非字号 ≥ 16px；这条兜底 */
+    font-size: 16px;
+  }
+
+  /* 宋体是「信」的字体，只给标题与引语用。
+     系统宋体没有 500 字重，所以标题只走 600 / 700。 */
+  h1,
+  h2,
+  h3,
+  .font-serif {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+
+  /* 数字在列表里要纵向对齐，等宽数字比等宽字体更重要 */
+  .tnum,
+  input[type='number'] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------- §19.3 印章
+     全站唯一的动效。
+
+     写成 CSS 而不是一串 Tailwind 任意值：它有四个属性要在同一条时间轴上
+     一起变（scale / rotate / opacity / blur），落定之后还要换混合模式。
+     摊成工具类之后，没人看得出那是一枚印章落下来的过程。
+
+     时间轴：点击 → 220ms 缩放旋转落定 → 停留 500ms（在 JS 里）→ 卡片上滑淡出。
+     API 请求在点击瞬间就发出去，不等动画 —— 动画只是覆盖掉网络延迟，
+     不能变成延迟。 */
+
+  .seal-mark {
+    opacity: 0;
+    transform: scale(1.6) rotate(0deg);
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      filter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform, opacity;
+  }
+
+  /* 落定：缩到 1.0、压 −8°，再用 multiply 加一点模糊模拟墨渗进纸纤维。
+
+     8° 是手盖的印会和纸边歪开的角度；正正方方地落下去，看起来是
+     打印上去的，不是盖上去的。 */
+  .seal-mark[data-landed='true'] {
+    opacity: 1;
+    transform: scale(1) rotate(-8deg);
+    filter: blur(0.4px);
+    mix-blend-mode: multiply;
+  }
+
+  /* 深色底上不用 multiply：「墨渗进纸纤维」是浅色纸上的隐喻，
+     在深底上 multiply 只会把印章压成一团黑。 */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .seal-mark[data-landed='true'] {
+      mix-blend-mode: normal;
+    }
+  }
+  :root[data-theme='dark'] .seal-mark[data-landed='true'] {
+    mix-blend-mode: normal;
+  }
+
+  /* 盖完章，信纸让位：上滑、淡出。 */
+  .letter-leaving {
+    opacity: 0;
+    transform: translateY(-16px);
+    transition:
+      opacity 320ms ease,
+      transform 320ms ease;
+  }
+
+  /* 减少动态时不做缩放与旋转，只留一枚不透明的印。
+     上面那条全局规则只把过渡压到 0.01ms，本可以「瞬间转过去」——
+     但那仍然会留下一个歪 8° 的印，而 §19.3 要的是不缩放不旋转。 */
+  @media (prefers-reduced-motion: reduce) {
+    .seal-mark,
+    .seal-mark[data-landed='true'] {
+      transform: none;
+    }
+    .seal-mark[data-landed='true'] {
+      filter: none;
+    }
+  }
+}
+
+@layer utilities {
+  /* 发丝线。1px 在 2x 屏上偏粗，用 0.5px 更接近纸上的印刷线 */
+  .hairline-b {
+    border-bottom: 1px solid var(--line);
+  }
+  .hairline-t {
+    border-top: 1px solid var(--line);
+  }
+
+  /* 底部安全区：iPhone 的横条 */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
