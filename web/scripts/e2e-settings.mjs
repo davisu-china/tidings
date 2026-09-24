@@ -89,12 +89,23 @@ async function upload(token, bytes) {
 }
 
 /**
- * 建一个已入池的账号。
+ * 清掉注册限流计数。
  *
- * 注册计数要清 —— 单 IP 每日 10 个（maxRegistersPerIPPerDay），
- * 这个脚本一个、e2e-m4 十六个，不清的话第二个脚本就 429。
+ * 默认打本地 compose 那套 redis。对着生产跑时本地栈多半没起，
+ * docker compose exec 会当场抛错、脚本还没开始就结束 —— 所以留一个
+ * E2E_CLEAR_LIMIT：
+ *   E2E_CLEAR_LIMIT=skip                    跳过（限流键已被别处清过了）
+ *   E2E_CLEAR_LIMIT='<一条命令>'            换成打生产 redis，例如
+ *     ssh jdcloud 'docker exec tidings-redis sh -c \
+ *       "redis-cli --scan --pattern auth:reg:ip:* | xargs -r redis-cli del"'
  */
-async function createActiveAccount() {
+function clearRegisterLimit() {
+  const custom = process.env.E2E_CLEAR_LIMIT
+  if (custom === 'skip') return
+  if (custom) {
+    execFileSync('bash', ['-c', custom], { stdio: 'inherit' })
+    return
+  }
   execFileSync('docker', [
     ...COMPOSE,
     'exec',
@@ -106,6 +117,16 @@ async function createActiveAccount() {
     '0',
     'auth:reg:ip:*',
   ])
+}
+
+/**
+ * 建一个已入池的账号。
+ *
+ * 注册计数要清 —— 单 IP 每日 10 个（maxRegistersPerIPPerDay），
+ * 这个脚本一个、e2e-m4 十六个，不清的话第二个脚本就 429。
+ */
+async function createActiveAccount() {
+  clearRegisterLimit()
 
   const auth = await api('/auth/register', {
     method: 'POST',
@@ -195,8 +216,39 @@ try {
     )
     const el = h.asElement()
     if (!el) throw new Error(`找不到文本为「${text}」的 ${selector}`)
+    await clickSettled(el, text)
     await el.click()
     await h.dispose()
+  }
+
+  /**
+   * 点击前先把元素挪到视口中间，并且等它停下来。
+   *
+   * 底部 tab 固定占着视口最下面 56px，而 puppeteer 默认只把元素滚到
+   * 「刚好露出来」—— 那种位置下元素的中点正好落在 tab 栏底下，点下去
+   * 点到的是 tab，页面会跳到别处。表现是「点了保存/退出，结果回到了首页」。
+   *
+   * 只滚一次不够：滚完到点下去之间页面可能还在长，上面的元素一插进来
+   * 就把目标顶走，点下去落在别的地方。所以滚完确认这个点上真的是它，
+   * 不是就重来（有限次，免得真出问题时空转到天亮）。
+   */
+  const clickSettled = async (el, label) => {
+    for (let i = 0; i < 10; i++) {
+      const before = await el.evaluate((e) => {
+        e.scrollIntoView({ block: 'center' })
+        const r = e.getBoundingClientRect()
+        return { top: r.top, left: r.left }
+      })
+      await new Promise((r) => setTimeout(r, 120))
+      const ok = await el.evaluate((e, prev) => {
+        const r = e.getBoundingClientRect()
+        if (Math.abs(r.top - prev.top) > 0.5 || Math.abs(r.left - prev.left) > 0.5) return false
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return hit === e || e.contains(hit)
+      }, before)
+      if (ok) return
+    }
+    throw new Error(`点不到「${label}」：位置一直在动，或者被别的元素盖着`)
   }
 
   /**
@@ -219,6 +271,7 @@ try {
     )
     const el = h.asElement()
     if (!el) throw new Error(`「${groupId}」这一组里没有「${text}」`)
+    await clickSettled(el, text)
     await el.click()
     await h.dispose()
   }
@@ -309,8 +362,94 @@ try {
   await clickIn('accept_divorced', '不接受') // 0 —— 与「不限」的 -1 只差一个数
   await clickIn('accept_remote', '不接受') // 2
   await clickIn('edu_min', '硕士') // 3
-  await clickText('button', '上海')
-  await clickText('button', '杭州')
+
+  // 期望城市是 省 → 市 → 添加 → chips。省与市是「待添加」的草稿，不点添加
+  // 就不进表单 —— 拨一下省下拉本身不该把 isDirty 弄脏。
+  const readPicker = () =>
+    page.evaluate(() => {
+      const q = (id) => document.querySelector(id)
+      return {
+        province: q('#city_codes_province').value,
+        city: q('#city_codes_city').value,
+        cityDisabled: q('#city_codes_city').disabled,
+        cityCount: q('#city_codes_city').options.length - 1,
+        addLabel: q('#city_codes_add').textContent.trim(),
+        addDisabled: q('#city_codes_add').disabled,
+        chips: [...document.querySelectorAll('[id^="city_codes_remove_"]')].map((b) =>
+          b.textContent.trim(),
+        ),
+      }
+    })
+
+  let picker = await readPicker()
+  log(
+    picker.cityDisabled && picker.cityCount === 0 && picker.addDisabled,
+    '期望城市：省没选时，市与「添加」都不可用',
+  )
+
+  // 直辖市：省一选，市自动选中。只有一个答案的一级不该再点一次
+  await page.select('#city_codes_province', '310000')
+  picker = await readPicker()
+  log(
+    picker.city === '310000' && !picker.addDisabled && picker.addLabel === '添加',
+    '选上海：市自动选中，「添加」可点',
+  )
+
+  await page.click('#city_codes_add')
+  picker = await readPicker()
+  log(picker.chips.join(',') === '上海', `添加之后 chips 是「${picker.chips.join(' ')}」`)
+  log(
+    picker.addDisabled && picker.addLabel === '已添加',
+    '同一个城市不会加两次：「添加」变成「已添加」并置灰',
+  )
+
+  // 换到一个多市的省，市必须被清掉 —— 留着就是「浙江 · 上海」
+  await page.select('#city_codes_province', '330000')
+  picker = await readPicker()
+  log(
+    picker.city === '' && !picker.cityDisabled && picker.cityCount === 11 && picker.addDisabled,
+    `换到浙江：市被清空，${picker.cityCount} 个市等着选`,
+  )
+
+  await page.select('#city_codes_city', '330100')
+  await page.click('#city_codes_add')
+  picker = await readPicker()
+  log(picker.chips.join(',') === '上海,杭州', `两个城市都在里面：${picker.chips.join(' ')}`)
+
+  // 上限 5 个：到顶之后按钮置灰，而不是点了没反应
+  for (const [province, city] of [
+    ['110000', '110000'], // 北京，同样是直辖市，市自动选中
+    ['440000', '440100'], // 广东 · 广州
+    ['510000', '510100'], // 四川 · 成都
+  ]) {
+    await page.select('#city_codes_province', province)
+    await page.select('#city_codes_city', city)
+    await page.click('#city_codes_add')
+  }
+  // 已经满 5 个：换一个没加过的城市，「添加」置灰并说明原因，而不是
+  // 点了没反应。（不能停在刚加完那一个上 —— 那时按钮显示的是「已添加」，
+  // 那是另一个状态，两句话都对，但测的不是同一件事。）
+  await page.select('#city_codes_province', '320000')
+  await page.select('#city_codes_city', '320100')
+  picker = await readPicker()
+  log(
+    picker.chips.length === 5 && picker.addDisabled && picker.addLabel === '已满 5 个',
+    `满 5 个之后再选一个：按钮是「${picker.addLabel}」并置灰`,
+  )
+  await shot('s03b-city-codes-full')
+
+  // chips 能删。只能加不能删的话，这个字段就是一次性的
+  await page.click('#city_codes_remove_510100')
+  picker = await readPicker()
+  log(
+    picker.chips.length === 4 && !picker.addDisabled && picker.addLabel === '添加',
+    '删掉一个：计数回落，「添加」重新可用',
+  )
+
+  await page.click('#city_codes_remove_440100')
+  await page.click('#city_codes_remove_110000')
+  picker = await readPicker()
+  log(picker.chips.join(',') === '上海,杭州', `删回两个：${picker.chips.join(' ')}`)
 
   page_note = await bodyText()
   log(page_note.includes('已选 2 个'), '选中城市之后计数跟着走')
