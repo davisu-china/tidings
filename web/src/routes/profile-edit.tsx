@@ -6,12 +6,11 @@ import { listPhotos } from '@/api/media'
 import { fetchProfile } from '@/api/profile'
 import type { Photo, Profile } from '@/api/types'
 import { AvatarUploader, PhotoUploader } from '@/components/PhotoUpload'
-import { BasicFields, FigureFields, MoreFields } from '@/components/profile/fields'
+import { BasicFields, EducationFields, FigureFields, MoreFields } from '@/components/profile/fields'
 import { useProfileForm } from '@/components/profile/form'
-import { BASIC_FIELDS, FIGURE_FIELDS, MORE_FIELDS } from '@/components/profile/steps'
+import { BASIC_FIELDS, EDUCATION_FIELDS, FIGURE_FIELDS, MORE_FIELDS } from '@/components/profile/steps'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { missingLabels } from '@/lib/dict'
 
 export async function profileEditLoader() {
   const [profile, photos] = await Promise.all([fetchProfile(), listPhotos()])
@@ -75,19 +74,12 @@ export function ProfileEditPage() {
     formState: { errors },
   } = form
 
-  const missing = missingLabels(profile.missing_required)
-
   return (
     <div className="mx-auto max-w-[640px] px-5 py-8">
       <Link to="/me" className="text-[13px] text-muted hover:text-ink-2">
         ← 我的
       </Link>
       <h1 className="mt-4 font-serif text-[22px] leading-tight text-ink">编辑资料</h1>
-
-      <p className="mt-3 text-[13px] leading-[1.8] text-muted">
-        档案完成度 <span className="tnum font-mono text-ink-2">{profile.completeness}%</span>
-        {missing.length > 0 && <>，还差：{missing.join('、')}</>}
-      </p>
 
       <Block
         title="基本"
@@ -101,12 +93,22 @@ export function ProfileEditPage() {
 
       <Block
         title="外形"
-        description="身高和学历是硬条件过滤里最常用的两项。"
+        description="身高和体重都必填。身高会参与对方的条件筛选。"
         dirty={isDirty(FIGURE_FIELDS)}
         saving={saving}
         onSave={() => void save(FIGURE_FIELDS)}
       >
         <FigureFields control={control} errors={errors} />
+      </Block>
+
+      <Block
+        title="学历"
+        description="学历和毕业院校都必填。学历会参与对方的条件筛选，院校帮别人认出你。"
+        dirty={isDirty(EDUCATION_FIELDS)}
+        saving={saving}
+        onSave={() => void save(EDUCATION_FIELDS)}
+      >
+        <EducationFields control={control} errors={errors} />
       </Block>
 
       <section className="mt-10 border-t border-line pt-8">
@@ -126,7 +128,7 @@ export function ProfileEditPage() {
 
       <Block
         title="补充"
-        description="全是选填，但占完成度的 40 分。填得越具体，越容易被人记住。"
+        description="全是选填。填得越具体，越容易被人记住。"
         dirty={isDirty(MORE_FIELDS)}
         saving={saving}
         onSave={() => void save(MORE_FIELDS)}

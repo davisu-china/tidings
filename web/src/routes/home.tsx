@@ -41,7 +41,7 @@ export function HomePage() {
   if (data.introductions.length === 0) {
     return (
       <div className="mx-auto flex max-w-[880px] flex-1 flex-col">
-        <QuietEmpty completeness={profile.completeness} missing={profile.missing_required} />
+        <QuietEmpty missing={profile.missing_required} />
       </div>
     )
   }

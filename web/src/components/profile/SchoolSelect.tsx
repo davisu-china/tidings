@@ -76,8 +76,8 @@ export function SchoolSelect({
           setLoading(false)
         })
         .catch((err: unknown) => {
-          // 院校库查不到不该让整个表单不可用：它是选填项，
-          // 而且用户已经选过的值还在。静默降级成「没结果」。
+          // 院校库查不到不该让整个表单不可用：这个框收的是自由文本，
+          // 列表只是建议，而且用户已经选过的值还在。静默降级成「没结果」。
           if (!(err instanceof DOMException && err.name === 'AbortError')) {
             setItems([])
             setFailed(true)
@@ -190,7 +190,8 @@ export function SchoolSelect({
         )}
       />
 
-      {/* 清空。学校是选填项，填了之后必须能撤回空 */}
+      {/* 清空。院校是必填，但选错了要能撤回重填 —— 空着存不上去，
+          zod 会拦在保存那一步，所以这个按钮不构成「把必填项擦掉」的漏洞 */}
       {value !== '' && !disabled && (
         <button
           type="button"

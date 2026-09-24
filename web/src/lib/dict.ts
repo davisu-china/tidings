@@ -116,16 +116,21 @@ export const wantChildLabel = (v: number | null | undefined) => labelOf(WANT_CHI
 export const maritalLabel = (v: number | null | undefined) => labelOf(MARITAL_STATUSES, v)
 
 /**
- * 缺失项标识 → 人话。首页空状态要写「还差：单位、收入、作息」，
- * 直接把后端的字段名摊给用户看是不合格的。
+ * 缺失项标识 → 人话。直接把后端的字段名摊给用户看是不合格的。
+ *
+ * 现在还用在两个地方：建档向导里「下一步按不动」时点明缺的是什么，
+ * 以及「我的」页判断要不要给「去补全」。曾经那张全量缺项清单已经不写了。
  */
 export const MISSING_LABELS: Record<string, string> = {
   nickname: '昵称',
   gender: '性别',
-  birth_ym: '出生年月',
+  // 字段在界面上叫「出生日期」（年月日一起填），不是「出生年月」
+  birth_ym: '出生日期',
   city_code: '城市',
   height_cm: '身高',
+  weight_kg: '体重',
   education_level: '学历',
+  school_name: '毕业院校',
   avatar_key: '头像',
   // 不带张数：改完之后这条只在 0 张时出现，写「至少 3 张」会是假话。
   photos: '照片',

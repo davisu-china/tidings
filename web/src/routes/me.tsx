@@ -8,7 +8,6 @@ import { fetchProfile } from '@/api/profile'
 import type { Profile, UserStatus } from '@/api/types'
 import { PushSetting } from '@/components/PushSetting'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/cn'
 import { ageFromBirthYM, educationLabel, genderLabel, missingLabels, PHOTO_GOAL } from '@/lib/dict'
 import { cityName } from '@/lib/regions'
@@ -134,34 +133,36 @@ export function MePage() {
 
       {note && <p className="mt-6 text-[13px] leading-[1.8] text-muted">{note}</p>}
 
-      <section className="mt-9">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[14px] text-ink-2">档案完成度</span>
-          <span className="tnum font-mono text-[15px] text-ink">{profile.completeness}%</span>
-        </div>
-        <Progress value={profile.completeness} className="mt-3" label="档案完成度" />
-        <p className="mt-3 text-[13px] leading-[1.8] text-muted">
-          {missing.length === 0 ? (
-            // missing_required 是入池门槛（7 项必填 + 照片），不是完整度。
-            // 门槛过了但选填没填满时完成度可能只有 73%，那时说「档案已完整」是假话。
-            '入池条件已满足，可以收到引荐了。选填项填得越多，越容易被记住。'
-          ) : (
-            <>
-              还差：{missing.join('、')}
-              <br />
-              补齐之后才会被引荐给别人。
-            </>
-          )}
-        </p>
+      {/* 不报完成度、也不列「还差哪几项」：进没进池子只有两种状态，说清楚就够，
+          缺项清单该在编辑页里对着字段看。
+
+          入池与否看 status，不看 missing —— 这两件事在加过门槛的老账号上会分叉：
+          服务端只在 onboarding 时判翻牌，之后再往门槛里加项，已入池的人不会被
+          踢回来（profile.go 的 applyProfileState）。拿 missing 当判据的话，
+          他们会被告知一件不成立的事。缺项照样给出口，但那是「补一补更好」，
+          不是「你还没进池子」。 */}
+      <div className="mt-7">
+        {profile.status === 'active' && (
+          <p className="text-[13px] leading-[1.8] text-muted">
+            入池条件已满足，可以收到引荐了。
+            {missing.length === 0 && '选填项填得越多，越容易被记住。'}
+          </p>
+        )}
         {missing.length > 0 && (
-          <Button asChild variant="outline" className="mt-5">
+          <Button
+            asChild
+            variant="outline"
+            // 上面那句话只在 active 时才有，没有它时按钮自己撑起 mt-7 那份间距，
+            // 不必再加 —— 否则建档中的用户会看到一段凭空的留白。
+            className={profile.status === 'active' ? 'mt-5' : undefined}
+          >
             <Link to="/me/edit">去补全</Link>
           </Button>
         )}
-      </section>
+      </div>
 
       <nav className="mt-10 border-t border-line-soft">
-        <EntryLink to="/me/edit" label="编辑资料" hint="基本、外形、补充" />
+        <EntryLink to="/me/edit" label="编辑资料" hint="基本、外形、学历、补充" />
         <EntryLink
           to="/me/photos"
           label="照片"

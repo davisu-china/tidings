@@ -6,11 +6,10 @@ import { listPhotos } from '@/api/media'
 import { fetchProfile } from '@/api/profile'
 import type { Photo, Profile } from '@/api/types'
 import { AvatarUploader, PhotoUploader } from '@/components/PhotoUpload'
-import { BasicFields, FigureFields, MoreFields } from '@/components/profile/fields'
+import { BasicFields, EducationFields, FigureFields, MoreFields } from '@/components/profile/fields'
 import { useProfileForm } from '@/components/profile/form'
 import { firstIncompleteStep, STEPS } from '@/components/profile/steps'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Spinner } from '@/components/ui/spinner'
 import { missingLabels } from '@/lib/dict'
 
@@ -28,6 +27,7 @@ export async function onboardingLoader() {
 const STEP_HINT: Record<string, string> = {
   basic: '先让引荐卡上有个能称呼的名字。',
   figure: '让别人能判断要不要认识你。',
+  education: '学历是硬条件过滤里最常用的两项之一。写上母校，别人更容易认出你。',
   // 「我们会自动检查」是 e2e-onboarding 判断「已进入照片步」的锚点，别删。
   // 措辞是建议不是要求 —— 同一屏的顶栏会立刻显示「入池条件已满足」，
   // 这句要是读起来像门槛，用户会以为「下一步」还点不动。
@@ -63,7 +63,6 @@ export function OnboardingPage() {
 
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
-  const missing = missingLabels(profile.missing_required)
   const done = profile.missing_required.length === 0
 
   async function onNext() {
@@ -113,24 +112,13 @@ export function OnboardingPage() {
           ))}
         </div>
 
-        <div className="mt-6">
-          <div className="flex items-baseline justify-between text-[13px] text-muted">
-            <span>档案完成度</span>
-            <span className="tnum font-mono text-ink-2">{profile.completeness}%</span>
-          </div>
-          <Progress value={profile.completeness} className="mt-2" label="档案完成度" />
-          <p className="mt-2 text-[13px] leading-[1.8] text-muted">
-            {done ? (
-              '入池条件已满足，可以收到引荐了。'
-            ) : (
-              <>
-                还差：{missing.join('、')}
-                <br />
-                补齐之后才会被引荐给别人。
-              </>
-            )}
+        {/* 不报完成度、也不列「还差哪几项」：向导本来就是一步步往下走的，
+            顶上再挂一张缺项清单，说的全是用户此刻够不着的东西 */}
+        {done && (
+          <p className="mt-6 text-[13px] leading-[1.8] text-muted">
+            入池条件已满足，可以收到引荐了。
           </p>
-        </div>
+        )}
       </header>
 
       <main className="flex-1 pb-40 pt-9">
@@ -140,6 +128,7 @@ export function OnboardingPage() {
         <div className="mt-7">
           {current.key === 'basic' && <BasicFields control={control} errors={errors} />}
           {current.key === 'figure' && <FigureFields control={control} errors={errors} />}
+          {current.key === 'education' && <EducationFields control={control} errors={errors} />}
           {current.key === 'more' && <MoreFields control={control} errors={errors} />}
           {current.key === 'photos' && (
             <div>

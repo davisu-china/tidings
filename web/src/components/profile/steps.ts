@@ -1,15 +1,18 @@
 import type { FieldKey } from './schema'
 
 /**
- * 建档的四个步骤。
+ * 建档的五个步骤。
  *
- * 顺序不是随便排的：前三步装的是入池门槛（6 项必填 + 头像 + 第 1 张照片），
- * 第四步才是选填。用户在第四步停下来，档案也已经是可被引荐的 ——
+ * 顺序不是随便排的：前四步装的是入池门槛（8 项必填 + 头像 + 第 1 张照片），
+ * 第五步才是选填。用户在第五步停下来，档案也已经是可被引荐的 ——
  * 让必填项散落在最后一步是不可接受的。
  *
- * 第三步里只有头像和第 1 张是门槛：照片的要求是 1 张（见
+ * 每一页只装一块内容：外形是外形，学历是学历。四页里的两组字段是两对
+ * 硬条件 —— 身高配体重、学历配院校 —— 各自成一页，页标题才说得清在讲什么。
+ *
+ * 照片这一步里只有头像和第 1 张是门槛：照片的要求是 1 张（见
  * backend/internal/service/profile.go 的 minPhotosForActive），第 2、3 张
- * 和第四步的选填项同性质 —— 有价值，但不拦人。
+ * 和第五步的选填项同性质 —— 有价值，但不拦人。
  */
 export const BASIC_FIELDS = [
   'nickname',
@@ -21,15 +24,14 @@ export const BASIC_FIELDS = [
   'city_code',
 ] as const satisfies readonly FieldKey[]
 
+/** 外形：身高与体重。两项都是必填，所以界面上都没有「选填」标记。 */
+export const FIGURE_FIELDS = ['height_cm', 'weight_kg'] as const satisfies readonly FieldKey[]
+
 /**
- * 外形与教育。体重、毕业院校是选填，本可以留在第四步，但它们和
- * 身高、学历是成对的（身高体重一行、学历学校一行），拆开两步会让
- * 「填身高」和「填体重」隔着一整个步骤。代价是这一步里必填与选填混排，
- * 所以选填的两项在界面上都标了「选填」。
+ * 学历与毕业院校。它们是同一件事的两面 —— 在哪读的、读到什么程度 ——
+ * 所以同一页。两项也都是必填。
  */
-export const FIGURE_FIELDS = [
-  'height_cm',
-  'weight_kg',
+export const EDUCATION_FIELDS = [
   'education_level',
   'school_name',
 ] as const satisfies readonly FieldKey[]
@@ -56,7 +58,7 @@ export const MORE_FIELDS = [
 ] as const satisfies readonly FieldKey[]
 
 export interface Step {
-  key: 'basic' | 'figure' | 'photos' | 'more'
+  key: 'basic' | 'figure' | 'education' | 'photos' | 'more'
   title: string
   fields: readonly FieldKey[]
 }
@@ -64,6 +66,7 @@ export interface Step {
 export const STEPS: readonly Step[] = [
   { key: 'basic', title: '基本', fields: BASIC_FIELDS },
   { key: 'figure', title: '外形', fields: FIGURE_FIELDS },
+  { key: 'education', title: '学历', fields: EDUCATION_FIELDS },
   { key: 'photos', title: '照片', fields: PHOTO_FIELDS },
   { key: 'more', title: '补充', fields: MORE_FIELDS },
 ]
@@ -80,9 +83,11 @@ const MISSING_STEP: Record<string, number> = {
   birth_ym: 0,
   city_code: 0,
   height_cm: 1,
-  education_level: 1,
-  avatar_key: 2,
-  photos: 2,
+  weight_kg: 1,
+  education_level: 2,
+  school_name: 2,
+  avatar_key: 3,
+  photos: 3,
 }
 
 export function firstIncompleteStep(missing: readonly string[]): number {

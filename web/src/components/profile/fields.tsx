@@ -191,85 +191,84 @@ export function BasicFields({ control, errors }: SectionProps) {
   )
 }
 
-/**
- * 外形与教育：身高体重一行、学历学校一行。
- *
- * 学历和学校是同一件事的两面（在哪读的、读到什么程度），身高体重同理，
- * 所以各自并排而不是上下排 —— 上下排会让人以为它们是两个互不相干的字段，
- * 填完身高就翻过去了。体重与学校是选填，标了「选填」。
- */
+/** 外形：身高与体重。两项并排 —— 它们是一件事的两面，上下排会显得互不相干。 */
 export function FigureFields({ control, errors }: SectionProps) {
   return (
-    <div className="grid gap-5">
-      <Row>
-        <Controller
-          control={control}
-          name="height_cm"
-          render={({ field }) => (
-            <Field label="身高" controlId="height_cm" error={errors.height_cm?.message}>
-              <Select
-                value={field.value}
-                onChange={field.onChange}
-                options={HEIGHT_OPTIONS}
-                placeholder="请选择身高"
-              />
-            </Field>
-          )}
-        />
-        <Controller
-          control={control}
-          name="weight_kg"
-          render={({ field }) => (
-            <Field label="体重" controlId="weight_kg" optional error={errors.weight_kg?.message}>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={35}
-                max={150}
-                value={field.value ?? ''}
-                onChange={(e) =>
-                  field.onChange(e.target.value === '' ? null : Number(e.target.value))
-                }
-                onBlur={field.onBlur}
-                placeholder="公斤"
-              />
-            </Field>
-          )}
-        />
-      </Row>
+    <Row>
+      <Controller
+        control={control}
+        name="height_cm"
+        render={({ field }) => (
+          <Field label="身高" controlId="height_cm" error={errors.height_cm?.message}>
+            <Select
+              value={field.value}
+              onChange={field.onChange}
+              options={HEIGHT_OPTIONS}
+              placeholder="请选择身高"
+            />
+          </Field>
+        )}
+      />
+      <Controller
+        control={control}
+        name="weight_kg"
+        render={({ field }) => (
+          <Field label="体重" controlId="weight_kg" error={errors.weight_kg?.message}>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={35}
+              max={150}
+              value={field.value ?? ''}
+              onChange={(e) =>
+                field.onChange(e.target.value === '' ? null : Number(e.target.value))
+              }
+              onBlur={field.onBlur}
+              placeholder="公斤"
+            />
+          </Field>
+        )}
+      />
+    </Row>
+  )
+}
 
-      <Row>
-        <Controller
-          control={control}
-          name="education_level"
-          render={({ field }) => (
-            <Field label="学历" controlId="education_level" group error={errors.education_level?.message}>
-              <Segmented
-                value={field.value}
-                onChange={field.onChange}
-                options={EDUCATION_LEVELS}
-                columns={2}
-              />
-            </Field>
-          )}
-        />
-        <Controller
-          control={control}
-          name="school_name"
-          render={({ field }) => (
-            <Field
-              label="毕业院校"
-              controlId="school_name"
-              optional
-              error={errors.school_name?.message}
-              hint="输入几个字就能找到，从列表里选。"
-            >
-              <SchoolSelect value={field.value} onChange={field.onChange} />
-            </Field>
-          )}
-        />
-      </Row>
-    </div>
+/**
+ * 学历与毕业院校。同一件事的两面 —— 在哪读的、读到什么程度 —— 所以并排，
+ * 上下排会让人以为它们是两个互不相干的字段。
+ */
+export function EducationFields({ control, errors }: SectionProps) {
+  return (
+    <Row>
+      <Controller
+        control={control}
+        name="education_level"
+        render={({ field }) => (
+          <Field label="学历" controlId="education_level" group error={errors.education_level?.message}>
+            <Segmented
+              value={field.value}
+              onChange={field.onChange}
+              options={EDUCATION_LEVELS}
+              columns={2}
+            />
+          </Field>
+        )}
+      />
+      <Controller
+        control={control}
+        name="school_name"
+        render={({ field }) => (
+          <Field
+            label="毕业院校"
+            controlId="school_name"
+            error={errors.school_name?.message}
+            hint="输入几个字就能找到，从列表里选。"
+          >
+            <SchoolSelect value={field.value} onChange={field.onChange} />
+          </Field>
+        )}
+      />
+    </Row>
   )
 }
 
