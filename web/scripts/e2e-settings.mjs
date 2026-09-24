@@ -143,7 +143,11 @@ async function createActiveAccount() {
       birth_ym: 199508,
       city_code: 310000,
       height_cm: 165,
+      // 体重与毕业院校是入池必填（见 profile.go 的 requiredMissing）。
+      // 少了这两项这个账号会停在 onboarding，下面的 active 断言直接炸。
+      weight_kg: 52,
       education_level: 3,
+      school_name: '复旦大学',
       occupation: '编辑',
       income_band: 3,
       chronotype: 1,

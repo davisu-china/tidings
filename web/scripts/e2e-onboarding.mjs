@@ -69,6 +69,36 @@ function clearRegisterLimit() {
   ])
 }
 
+/**
+ * 直接对本地库跑一条 SQL。
+ *
+ * 用来造「入池门槛后来加过项」的老账号 —— 那条路径走接口造不出来（现在的
+ * 必填校验不会再让人以缺项的状态进池），可它恰恰是加门槛时最容易出事的地方：
+ * status 是 active、missing_required 却不为空。生产上加这次门槛时就有 121 个
+ * 账号是这个状态，所以它得有回归网，不能只靠推理。
+ */
+function psql(sql) {
+  return execFileSync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      resolve(REPO, 'deploy/docker-compose.yml'),
+      'exec',
+      '-T',
+      'postgres',
+      'psql',
+      '-U',
+      'tidings',
+      '-d',
+      'tidings',
+      '-tAc',
+      sql,
+    ],
+    { encoding: 'utf8' },
+  ).trim()
+}
+
 // 相册图按需生成，不让脚本依赖任何手工准备的文件。
 // 用 sips（macOS 自带）缩放同一张 fixture —— 跟默认的 Chrome 路径一样，
 // 这个脚本本来就只在 macOS 上跑。
@@ -124,11 +154,10 @@ try {
   const waitText = (text, timeout = 20000) =>
     page.waitForFunction((t) => document.body.innerText.includes(t), { timeout }, text)
 
-  // 下面等步骤切换时，等的都是该步独有的那句提示，不是「外形」「照片」这种标题词。
-  // 标题词在向导顶部的「还差：…」那一行里也会出现（还差：昵称、性别、…、照片），
-  // 用它等会在第一步就立刻命中，脚本于是停在第一步却以为已经到了照片步 ——
-  // 表现是一个没头没脑的 `Cannot read properties of null (reading 'uploadFile')`。
-  // 别把这些串换回步骤标题。
+  // 下面等步骤切换时，等的都是该步独有的那句提示，不是「基本」「外形」这种标题词。
+  // 标题词只有一两个字，别处很容易撞上，用它等会提前命中 —— 脚本于是停在上一步
+  // 却以为已经走过去了，表现是一个没头没脑的 `Cannot read properties of null
+  // (reading 'uploadFile')`。别把这些串换回步骤标题。
 
   const clickText = async (selector, text) => {
     const h = await page.evaluateHandle(
@@ -430,6 +459,14 @@ try {
 
   // ---------- 第 2 步：外形 ----------
   await page.select('#height_cm', '165')
+  await page.type('#weight_kg', '52')
+  await shot('04-onboarding-figure')
+
+  await clickText('button', '下一步')
+  await waitText('学历是硬条件过滤里最常用的两项之一')
+  log(true, '第二步已保存并进入学历步骤')
+
+  // ---------- 第 3 步：学历 ----------
   await clickText('[role=radio]', '硕士')
 
   // 毕业院校：输入的是查询词，只能从列表里选一个。这里刻意用别名「复旦」
@@ -443,12 +480,12 @@ try {
   const schoolPicked = await page.$eval('#school_name', (el) => el.value)
   log(schoolPicked === '复旦大学', `院校联想：输入「复旦」选中了 ${schoolPicked}`)
 
-  await shot('04-onboarding-figure')
+  await shot('04b-onboarding-education')
   await clickText('button', '下一步')
   await waitText('我们会自动检查')
-  log(true, '第二步已保存并进入照片步骤')
+  log(true, '第三步已保存并进入照片步骤')
 
-  // ---------- 第 3 步：照片 ----------
+  // ---------- 第 4 步：照片 ----------
   const avatarInput = await page.$('input[aria-label="选择头像"]')
   await avatarInput.uploadFile(FACE)
   await waitText('头像已就位', 30000)
@@ -606,10 +643,39 @@ try {
   await shot('08-me-edit')
 
   await page.goto(`${BASE}/me`, { waitUntil: 'domcontentloaded' })
-  await waitText('档案完成度')
-  const completeness = await page.evaluate(() => document.body.innerText.match(/档案完成度[\s\S]{0,12}/)?.[0])
-  log(true, `我的页：${completeness?.replace(/\n/g, ' ')}`)
+  // 完成度不再呈现给用户了，这一页现在只说进没进池子
+  await waitText('入池条件已满足')
+  const inPool = await page.evaluate(() =>
+    document.body.innerText.match(/入池条件已满足[\s\S]{0,24}/)?.[0],
+  )
+  log(true, `我的页：${inPool?.replace(/\n/g, ' ')}`)
   await shot('09-me')
+
+  // ---------- 门槛加过项之后的老账号 ----------
+  //
+  // 加必填项只拦新档案：服务端只在 status = onboarding 时翻牌（profile.go 的
+  // applyProfileState），已经入池的人不会被踢回来 —— 那会连同已有的引荐和
+  // 会话一起失效。于是「status 是 active、missing_required 却不为空」这个
+  // 组合真实存在，而这一页必须仍然说他已入池。
+  //
+  // 拿 missing 当入池判据就错了：那批人什么都没做，却会被告知自己不在池子里。
+  // 直接改库造出这个状态 —— 走接口造不出来，因为现在的校验不会让人以缺项的
+  // 状态进池，而正是「造不出来的状态」最容易在改动里被漏掉。
+  const uid = `(select id from users where email = '${email}')`
+  psql(`update profiles set school_name = '' where user_id = ${uid}`)
+  await page.goto(`${BASE}/me`, { waitUntil: 'domcontentloaded' })
+  await waitText('去补全')
+  const stillIn = await page.evaluate(() =>
+    document.body.innerText.match(/入池条件已满足[\s\S]{0,16}/)?.[0],
+  )
+  log(
+    Boolean(stillIn),
+    `缺了新门槛项的老账号仍显示已入池，同时给出补全入口：${stillIn?.replace(/\n/g, ' ')}`,
+  )
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+  await waitText('去补全')
+  log(true, '首页空状态同样给出补全入口')
+  psql(`update profiles set school_name = '复旦大学' where user_id = ${uid}`)
 
   // ---------- 路由守卫 ----------
   await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' })
