@@ -621,9 +621,9 @@
 
         <h3><span class="num">4.2</span>建档与完整度</h3>
 
-        <p>两段式，这是完整版 PRD 5.2 的简化落地。</p>
+        <p>两段式，这是完整版 PRD 5.2 的简化落地。v1.7 起两段合成一道门槛 —— 见下面的「补充」与「完成度」两节。</p>
 
-        <h4>入池门槛（第一段，必填 8 项）</h4>
+        <h4>入池门槛（第一段，必填 9 项）</h4>
 
         <div class="tw">
           <table>
@@ -646,54 +646,51 @@
 
         <p>门槛从 3 张降到 1 张（v1.4）：首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外。照片信息量不足会压低响应率这个理由没有消失，但它现在是<strong>建议</strong>而不是门槛 —— 前端照 3 张的软目标催（<code class="mono">PHOTO_GOAL</code>），后端只认 1。<strong>引荐卡的封面取 <code class="mono">position = 0</code> 那一张</strong>，所以 1 张的卡是完整的卡，不是残缺的卡。</p>
 
-        <p>照片数<strong>不进 <code class="mono">completeness</code></strong>（与 <code class="mono">birth_day</code> 同理），所以这次改动不碰候选集的 <code class="mono">completeness &gt;= 60</code> 门槛，也不需要迁移。另有一条保护：<strong>最后一张照片不给删</strong>（<code class="mono">LAST_PHOTO</code>）—— 删照片不会把 <code class="mono">status</code> 退回 <code class="mono">onboarding</code>（那是有意的，已建立的引荐不该失效），所以「在池子里却没有封面」这个状态必须事前拦住。换照片的路径是「先传新的，再删旧的」。</p>
+        <p>照片数<strong>不进 <code class="mono">completeness</code></strong>（与 <code class="mono">birth_day</code> 同理），它是门槛的另一个维度：<code class="mono">requiredMissing</code> 管字段，<code class="mono">admissionMissing</code> 在它之上再加一条「≥1 张照片」。另有一条保护：<strong>最后一张照片不给删</strong>（<code class="mono">LAST_PHOTO</code>）—— 删照片不会把 <code class="mono">status</code> 退回 <code class="mono">onboarding</code>（那是有意的，已建立的引荐不该失效），所以「在池子里却没有封面」这个状态必须事前拦住。换照片的路径是「先传新的，再删旧的」。</p>
 
-        <p><code class="mono">birth_day</code>（出生日 1–31）<strong>不在门槛里</strong>，也不进完成度。它是界面上「出生日期」三级联动的第三级（年 → 月 → 日），只把生日显示完整。年龄始终按 <code class="mono">birth_ym</code> 的月粒度算，日不参与任何计算：加进门槛会让存量老用户（只知道年月）的完成度掉到门槛以下，静默掉出候选池。</p>
+        <p><code class="mono">birth_day</code>（出生日 1–31）<strong>不在门槛里</strong>，也不进完成度。它是界面上「出生日期」三级联动的第三级（年 → 月 → 日），只把生日显示完整。年龄始终按 <code class="mono">birth_ym</code> 的月粒度算，日不参与任何计算：加进门槛会把存量老用户（只知道年月）挡在门外。</p>
 
-        <h4>深度档案门槛（第二段，选填 10 项）</h4>
+        <h4>补充（第二段，v1.7 起必填 11 项）</h4>
 
-        <p>选填项按模块分组渐进填写，不强制一次填完。填到 <strong>完成度 ≥ 60%</strong> 才进「可被别人看到」的名单。</p>
+        <p>这 11 项过去是选填，用户走到第四步停下就已经「可被引荐」了，于是常年空着 —— 量出来的数据很难看：125 个 active 账号里 <code>expectation</code> <strong>125 个全空</strong>、<code>company</code> <strong>124 个空</strong>。要它们有值，只能进门槛。所以 v1.7 起这一段与第一段合并成同一道门槛，<strong>没有「过了一半也能进池」这个中间态</strong>。</p>
 
         <div class="tw">
           <table>
-            <thead><tr><th>模块</th><th>选填字段</th><th>组内项数</th></tr></thead>
+            <thead><tr><th>模块</th><th>字段</th><th>组内项数</th></tr></thead>
             <tbody>
               <tr><td>基本盘补充</td><td class="mono">hometown_code · occupation · company · income_band</td><td class="num">4</td></tr>
-              <tr><td>生活方式</td><td class="mono">chronotype · smoking · drinking · hobbies</td><td class="num">4</td></tr>
+              <tr><td>生活方式</td><td class="mono">smoking · drinking · hobbies</td><td class="num">3</td></tr>
               <tr><td>自述</td><td class="mono">intro · expectation</td><td class="num">2</td></tr>
+              <tr><td>婚育</td><td class="mono">want_child · marital_status</td><td class="num">2</td></tr>
             </tbody>
           </table>
         </div>
 
-        <p>完成度算法沿用 <code>stubborn-love</code> 的 60/40 结构，但必填基数从 11 项改为 9 项（含头像），选填从 6 项改为 10 项：</p>
+        <p><strong>作息（<code class="mono">chronotype</code>）在 v1.7 被整个删掉</strong>，不是从必填里拿掉。它不是「少一个字段」，而是一条会反向激励的规则：它只喂 12.2 的 <code class="mono">lifestyleAffinity</code>，而那条规则是「任一方未填的不计入分母」—— 三项里只填吸烟和饮酒的人按两项算，三项全不填的人反而直接拿满分 1.0。<strong>如实填一项不如不填。</strong>删掉它，同时把吸烟与饮酒转成必填，这个洞在剩下的两项上顺带补上。</p>
 
-        <pre><code><span class="c">// completeness 算 0..100 的资料完整度。不参与匹配打分，只做门槛。</span>
-<span class="c">// 必填占 60 分，选填占 40 分 —— 选填给足权重，是为了让用户有动力补。</span>
-<span class="k">func</span> completeness(p *model.Profile, photoCount <span class="k">int</span>) <span class="k">int</span> {
-    <span class="k">const</span> totalRequired = 9   <span class="c">// 8 标量 + 头像</span>
-    filledRequired := totalRequired - len(missingRequired(p))
+        <p>判定上有一处容易写错，实现里留了注释：枚举类一律判 <code class="mono">nil</code>，<strong>绝不判 0</strong> —— <code class="mono">smoking</code> / <code class="mono">drinking</code> 的 0 是「不」，是一个用户认真给出的答案，把它当成未填会让人永远填不完。文本类（<code class="mono">occupation</code> / <code class="mono">company</code> / <code class="mono">hobbies</code> / <code class="mono">intro</code> / <code class="mono">expectation</code>）判空串，它们是 <code class="mono">not null default ''</code>。</p>
 
-    optional := []<span class="k">bool</span>{
-        p.HometownCode != <span class="k">nil</span>,
-        p.Occupation != <span class="s">""</span>, p.Company != <span class="s">""</span>, p.IncomeBand != <span class="k">nil</span>,
-        p.Chronotype != <span class="k">nil</span>, p.Smoking != <span class="k">nil</span>, p.Drinking != <span class="k">nil</span>,
-        p.Hobbies != <span class="s">""</span>, p.Intro != <span class="s">""</span>, p.Expectation != <span class="s">""</span>,
-    }
-    filledOptional := 0
-    <span class="k">for</span> _, ok := <span class="k">range</span> optional {
-        <span class="k">if</span> ok { filledOptional++ }
-    }
+        <h4>完成度（v1.7 起退位为惰性数值）</h4>
 
-    score := <span class="k">float64</span>(filledRequired)/<span class="k">float64</span>(totalRequired)*60 +
-        <span class="k">float64</span>(filledOptional)/<span class="k">float64</span>(len(optional))*40
-    <span class="k">return</span> <span class="k">int</span>(score + 0.5)
+        <p>公式从「必填/9×60 + 选填/10×40」改成「已填/20×100」，而且它<strong>不再拦人、不参与排序、界面不显示</strong>，只是一份留在服务端的数值。</p>
+
+        <p>原因是旧那道「引荐门槛（完成度 ≥ 60）」<strong>从来没有生效过</strong>。旧公式下「必填齐全、选填全空」正好等于 60 分，而入池本来就要求必填全齐 —— 四处 <code class="mono">WHERE p.completeness &gt;= 60</code> 是四个死条件，一个候选也没拦下过。本文档早先自己写过这份担心（见 24 章风险表），v1.7 得以确认：形同虚设。既然它是空的，留着它比删掉更糟 —— 它会让后来读代码的人以为池子有两道门槛。</p>
+
+        <pre><code><span class="c">// completeness 算 0..100 的资料完整度。</span>
+<span class="c">// v1.7 起它既不是门槛也不参与排序，只是一份惰性数值 —— 保留这个存储列</span>
+<span class="c">// 是为了运营能读到分布，删列要再写一条迁移，不值当。</span>
+<span class="k">func</span> completeness(p *model.Profile) <span class="k">int</span> {
+    <span class="k">const</span> totalRequired = 20 <span class="c">// requiredMissing 的项数，两处必须一起改</span>
+    filled := totalRequired - len(requiredMissing(p))
+    <span class="k">return</span> <span class="k">int</span>(<span class="k">float64</span>(filled)/<span class="k">float64</span>(totalRequired)*100 + 0.5)
 }</code></pre>
 
         <div class="callout">
-          <span class="label">不对称</span>
-          <h4>能收引荐，和能被引荐，是两个门槛</h4>
-          <p>只过入池门槛的用户<strong>能收到引荐，但不会被引荐给别人</strong>（决策 16）。这是驱动补全的杠杆：他想被看见，就得把深度档案补到 60%。</p>
-          <p>页面上的呈现（v1.6 改）：<strong>不报完成度、也不列「还差哪几项」</strong>。首页空状态只说「暂时没有新的引荐。我们在替你看着。」；「我的」页只说进没进池子 —— 进了就是「入池条件已满足，可以收到引荐了」。分数留在服务端，它是门槛不是进度条；缺项该在编辑页里对着字段看，而不是在首页挂一张用户此刻够不着的清单。</p>
+          <span class="label">门槛</span>
+          <h4>只有一道门槛了</h4>
+          <p>v1.7 起「能收引荐」和「能被引荐给别人」是<strong>同一件事</strong>：20 项必填齐全 + ≥1 张照片。决策 16 描述的「不对称」在代码里从未成立过（那个第二道门槛一直是空的），现在正式作废。</p>
+          <p>老账号不回溯：门槛只在 <code class="mono">status = onboarding</code> 时判（<code class="mono">applyProfileState</code>），已入池的人不会被踢回来。这不是偏好而是必须 —— 新的 20 项门槛，线上 125 个 active 账号里<strong>0 个能过</strong>（<code class="mono">expectation</code> 全空），回溯生效等于候选池当场归零、引荐停摆。他们只会在「我的」页看到一个补全入口。</p>
+          <p>页面上的呈现不变（v1.6 起）：<strong>不报完成度、也不列「还差哪几项」</strong>。首页空状态只说「暂时没有新的引荐。我们在替你看着。」；「我的」页只说进没进池子 —— 进了就是「入池条件已满足，可以收到引荐了」。缺项该在编辑页里对着字段看，而不是在首页挂一张用户此刻够不着的清单。</p>
         </div>
 
         <h4>分步保存与续填</h4>
@@ -865,9 +862,9 @@
               </tr>
               <tr>
                 <td class="mono">16 完整度门槛</td>
-                <td>60/40 拆分，入池 11 项必填</td>
-                <td>60/40 结构不变，必填基数降为 9 项、选填升为 10 项</td>
-                <td>完整版把必填压到 6 项 + 头像，选填变多，对称调整权重才不失真</td>
+                <td>60/40 拆分，入池 11 项必填；另有第二道「完成度 ≥ 60」门槛，只过第一道的人能收引荐但不被引荐</td>
+                <td><strong>v1.7 作废</strong>：只有一道门槛（20 项必填 + ≥1 张照片），完成度退位为惰性数值</td>
+                <td>那道「不对称」的第二道门槛<strong>从未生效过</strong> —— 旧公式下「必填齐全、选填全空」正好 60 分，而入池本就要求必填全齐，四处在 SQL 里的 <code>completeness &gt;= 60</code> 是死条件。v1.7 把补充 11 项收进必填，把这道空门槛删掉</td>
               </tr>
               <tr>
                 <td class="mono">17 收尾通知</td>
@@ -1119,7 +1116,6 @@
     occupation       TEXT     <span class="k">NOT NULL DEFAULT</span> <span class="s">''</span>,
     company          TEXT     <span class="k">NOT NULL DEFAULT</span> <span class="s">''</span>,
     income_band      SMALLINT,         <span class="c">-- 1..6，对外展示（决策 11）</span>
-    chronotype       SMALLINT,         <span class="c">-- 1 早睡早起 / 2 夜猫子 / 3 不规律</span>
     smoking          SMALLINT,         <span class="c">-- 0 不 / 1 偶尔 / 2 经常</span>
     drinking         SMALLINT,
     hobbies          TEXT     <span class="k">NOT NULL DEFAULT</span> <span class="s">''</span>,  <span class="c">-- 、连接，≤6 个</span>
@@ -1442,13 +1438,13 @@
                 <td class="num">④</td>
                 <td><strong>生活方式相容</strong></td>
                 <td class="num">0.10</td>
-                <td>作息、吸烟、饮酒三项中相同的比例。任一方未填的不计入分母</td>
+                <td>吸烟、饮酒两项中相同的比例。任一方未填的不计入分母</td>
               </tr>
               <tr>
                 <td class="num">⑤</td>
                 <td><strong>活跃度</strong></td>
                 <td class="num">0.10</td>
-                <td><code>exp(-Δ天 / 7)</code>，Δ 取 <code>now() - coalesce(last_active_at, created_at)</code>。7 天时间常数</td>
+                <td><code>exp(-Δ天 / 7)</code>，Δ 取 <code>now() - coalesce(last_active_at, created_at)</code>。7 天时间常数。同一个信号在 12.3 的排序里另用一次（v1.7）</td>
               </tr>
             </tbody>
           </table>
@@ -1459,7 +1455,7 @@
         <h4>为什么去掉完整度和热度惩罚</h4>
 
         <ul>
-          <li><strong>完整度。</strong><code>stubborn-love</code> 把它算进 feed 分（权重 0.25）是为了激励补全，在划卡场景有效。但在引荐场景，它会让「资料填得全的人被反复推给所有人」，而不是「最合适的人被推给你」。决策 16 已定完整度<strong>只做门槛不做分数</strong>，这里必须落实</li>
+          <li><strong>完整度。</strong><code>stubborn-love</code> 把它算进 feed 分（权重 0.25）是为了激励补全，在划卡场景有效。但在引荐场景，它会让「资料填得全的人被反复推给所有人」，而不是「最合适的人被推给你」。v1.7 起它连门槛也不是了（见 4.2），只剩一份惰性数值 —— 这里就更没有理由把它算进分数</li>
           <li><strong>热度惩罚。</strong>它惩罚「最近被很多人右划的人」，为的是防止头部集中。Tidings 没有右划，也没有人气概念 —— 1.3 明确「不做颜值竞技场」。引入热度惩罚等于把攀比逻辑偷偷带回来</li>
         </ul>
 
@@ -1471,7 +1467,7 @@
 
         <pre><code><span class="k">SELECT</span> p.user_id, p.gender, p.birth_ym, p.city_code, p.hometown_code,
        p.height_cm, p.education_level, p.school_tier, p.income_band,
-       p.chronotype, p.smoking, p.drinking,
+       p.smoking, p.drinking,
        u.last_active_at, u.created_at
 <span class="k">FROM</span> profiles p
 <span class="k">JOIN</span> users u <span class="k">ON</span> u.id = p.user_id
@@ -1479,7 +1475,6 @@
 <span class="k">WHERE</span> u.status = <span class="s">'active'</span>
   <span class="k">AND</span> p.user_id &lt;&gt; ?                                    <span class="c">-- 不是我</span>
   <span class="k">AND</span> p.gender &lt;&gt; ?                                     <span class="c">-- 异性，写死不做同性</span>
-  <span class="k">AND</span> p.completeness &gt;= 60                              <span class="c">-- 对方也得过引荐门槛</span>
   <span class="c">-- 硬条件：年龄区间（对方接受我的年龄）</span>
   <span class="k">AND</span> (? <span class="k">IS NULL OR</span> p.birth_ym <span class="k">BETWEEN</span> coalesce(pref.birth_ym_min, 0) <span class="k">AND</span> coalesce(pref.birth_ym_max, 999999))
   <span class="k">AND</span> (? <span class="k">IS NULL OR</span> ? <span class="k">BETWEEN</span> coalesce(pref.birth_ym_min, 0) <span class="k">AND</span> coalesce(pref.birth_ym_max, 999999))
@@ -1499,10 +1494,14 @@
   )
   <span class="c">-- 不做同性，所以排除自己性别；同城或同省</span>
   <span class="k">AND</span> (p.city_code = ? <span class="k">OR</span> (p.city_code / 10000) = (? / 10000))
-<span class="k">ORDER BY</span> random()
+<span class="k">ORDER BY</span> u.last_active_at <span class="k">DESC NULLS LAST</span>, p.user_id <span class="k">ASC</span>
 <span class="k">LIMIT</span> 200;</code></pre>
 
-        <p>取 200 个随机候选回到 Go 侧打分。<code>ORDER BY random()</code> 与 <code>LIMIT 200</code> 的组合让每次生成的候选组合都不同，避免同一批人反复互推。</p>
+        <p>取 200 个候选回到 Go 侧打分。排序在 v1.7 从 <code>ORDER BY random()</code> 改成「最近活跃优先」，并补了 <code>p.user_id</code> 作 tiebreak 让同一批人的顺序是确定的（排序里带 <code>LIMIT</code> 时，没有 tiebreak 就可能取到不同的切片）。</p>
+
+        <p>改排序的理由：<code>random()</code> 顺带抹掉了「谁最近来过」，而那正是产品想优先照顾的信号 —— 一个昨天来过的人和一个三个月没开过的人，被推到别人面前的机会原本完全一样。同一份信号在打分里已经占了 0.10（上表 ⑤，7 天时间常数），现在在「谁先进候选」这层再用一次。<strong>真正防重复的是那条 <code>NOT EXISTS</code>，不是随机</strong>，所以去掉随机不会让人被反复互推。</p>
+
+        <p>老行的 <code>last_active_at</code> 为空时排在最后（<code>NULLS LAST</code>）—— <code>touchActive</code> 只在注册与登录时写、刷新 token 不写，所以这个字段反映的是「上次真的进来过」，不是「上次开着页面」。线上 125 个 active 账号目前都有值。</p>
 
         <div class="callout warn">
           <span class="label">性能</span>
@@ -2205,7 +2204,7 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
         │   [ 去补全 ]             │  <span class="c">accent 描边按钮，有缺项时才出现</span>
         └─────────────────────────┘</code></pre>
 
-        <p>这一屏仍然服务决策 16：<strong>只入池的用户能收引荐、不会被引荐</strong>。但「你为什么还没被引荐」不再用完成度来说了：百分比和缺项清单都不出现，只给一句平稳的交代，有缺项的人多一个「去补全」的出口。一个可能在池子长大之前连着几周都是空的界面，不适合夹一张催收单（v1.6 改，见 19.2 的「进度」一条）。</p>
+        <p>「你为什么还没被引荐」不再用完成度来说：百分比和缺项清单都不出现，只给一句平稳的交代，有缺项的人多一个「去补全」的出口。一个可能在池子长大之前连着几周都是空的界面，不适合夹一张催收单（v1.6 改，见 19.2 的「进度」一条）。v1.7 把补充 11 项收进门槛之后，这一屏多了一类访客：<strong>加过门槛之前就入池的老账号</strong>。他们照旧显示「入池条件已满足」，缺项只体现在那个补全入口上 —— 判据是 <code class="mono">status</code> 而不是缺项清单，这两件事在老账号上会分叉。</p>
 
         <h4>收尾通知 —— 已经封上的信</h4>
 
@@ -2599,9 +2598,9 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
               </tr>
               <tr>
                 <td class="num">02</td>
-                <td><strong>完整度第二道门槛的阈值</strong></td>
-                <td>保留 60%，即 10 项选填里填满 8 项</td>
-                <td>MVP 的选填字段比完整版 PRD 少，这道门槛的实际约束力需要观察。<strong>如果它形同虚设，就等于决策 16 的「不对称」没有落地</strong>；如果太严，用户会卡在「收得到引荐但没人看得见我」的困惑里。跑两周看 <code>completeness</code> 的分布再定</td>
+                <td><strong>门槛从 9 项涨到 20 项之后的建档完成率</strong></td>
+                <td>观察两周，看补充这一步的流失</td>
+                <td>这是 v1.7 最大的不确定性。加门槛的证据是实的（125 个 active 账号里 <code>expectation</code> 全空、<code>company</code> 124 个空），代价也是实的：新用户要在第五步填完 11 项才进池，其中「工作单位」和「对另一半的期待」是<strong>从来没有人填过</strong>的两项。如果流失明显，退路是砍项而不是恢复「选填」—— 一个空着的字段既然没人填，就该问它是否该存在</td>
               </tr>
             </tbody>
           </table>
@@ -2609,14 +2608,15 @@ active := r.Group(<span class="s">"/api/v1"</span>, h.RequireAuth(), h.RequireAc
       </section>
 
       <p class="foot">
-        Tidings · 有信 · MVP 产品需求与技术方案 v1.5 · 2026-09-24<br>
+        Tidings · 有信 · MVP 产品需求与技术方案 v1.7 · 2026-09-25<br>
         上游为完整版 PRD v0.6（<code>docs/prd.html</code>）；本册的技术方案已细化到可开工，产品范围已收窄到可交付。<br>
         v1.1 变更：前端由 Vue 3 + 纯 CSS 改为 React 19 + Tailwind v4 + shadcn/ui，新增信纸体系设计系统（19.1）、关键界面（19.2）、印章动效（19.3）、响应式（19.4）与 iPhone 安装引导（19.5）。<br>
         v1.2 变更：注册登录由手机号 + 短信验证码改为<strong>邮箱 + 密码</strong>。MVP 因此只有 Web Push 一条外发通道 —— 无验证码、无自助找回、无邮箱验证，涉及 4.1 / 7 / 8 / 10.1 / 11 / 17 / 18 / 19.7 / 20 / 21 / 22 / 23 各节。<br>
         v1.3 变更（M1 落地后的回填）：Go 1.25 → <strong>1.26</strong>（<code>x/crypto</code> 及其拉起的 <code>x/sys</code> / <code>x/text</code> 要求 1.26，容器基础镜像同步）；图片输入<strong>加收 PNG</strong>，输出仍是 JPEG 三档（17 章、§21）；新增<strong>直传孤儿对象</strong>风险条目（§21），并写明「照片先审后发、文本先审」实际要等 M5 的审核队列，M1–M4 唯一在跑的自动门槛是人脸检测（§4.1、§21）；<strong>照片人脸检测提前进 M1</strong>，但只用于头像（§3）；18.2 的建档与媒体接口按实现改写（<code>PATCH</code> 而非 <code>PUT</code>、<code>PUT /me/avatar</code>、<code>PUT /me/photos/order</code>）；18.4 写明 <code>X-Admin-Token</code> 头的选择理由。<br>
         v1.4 变更：<strong>入池照片门槛 3 张 → 1 张</strong>（4.1、4.2、7 章、M1 验收）。首次建档要在两分钟内走完，把「传够 3 张」摆在门口会把人挡在门外；引荐卡只取第 1 张当封面，1 张的卡是完整的卡，多传照片从门槛降级为建议。随之新增 <code>LAST_PHOTO</code> 保护：删掉最后一张会让池子里出现没有封面的用户，服务端直接拒绝（删照片本来就不会把 <code>status</code> 退回 onboarding，所以这道拦截是必须的，不是冗余）。照片不进 <code>completeness</code>，这次改动不涉及「完整度 ≥ 60」那条红线，也不需要迁移。<br>
         v1.5 变更（19.2 建单向导）：<strong>出生日期、所在城市、家乡各收成一个字段 + 底部弹层滚轮</strong>。这不是新设计，是把 5.3 早就定下的「SheetPicker / WheelPicker」与「省市两级弹层」补进实现 —— M1 落地时为赶进度用的原生 <code>select</code>（年 / 月 / 日三个、省 / 市两个）在 19.2 里没有对应条目，这次一并改写。出生日期一屏三列、城市与家乡一屏两列（先省后市）；点「完成」才落库，Escape / 取消 / 点遮罩丢弃草稿。同时补上了自绘滚轮欠下的可达性（<code>role="listbox"</code> + 方向键、弹层焦点陷阱、Escape、背景滚动锁）——原生 <code>select</code> 本来用键盘就能操作，换成滚轮是一次真实的可达性回退，这几条是补丁不是等价物。弹层<strong>不做入场动画</strong>，理由同 19.3：全站唯一的动效是印章，它靠稀缺性成立。后端与字段契约（<code>birth_ym</code> / <code>birth_day</code> / <code>city_code</code>）一行未动，18.2 不受影响。<br>
-        v1.6 变更（19.2 建单向导与入池门槛）：<strong>入池必填由 6 项扩到 8 项</strong> —— <code>weight_kg</code>（35–150）与 <code>school_name</code>（≤40 字）由选填转为必填（4.1 / 4.2 / 5.2）。理由是把它们各自和已有的门槛配成对：身高配体重、学历配院校，只问一半会让「硬条件」在池子里留下半张档案。连带两处：完成度公式的分母从 7 / 12 改为 <code>totalRequired = 9</code> / 选填 10 项（60/40 的比例不变，但所有人的完成度会重算）；<code>school_name</code> 保持自由文本、不校院校库 —— 库外的学校也得填得进去，否则「必填」会变成「填不出来」（层级仍由 <code>schools.TierOf</code> 归一）。门槛仍然只在 <code>status = onboarding</code> 时判，已入池的人不会被踢回来，新门槛只拦新档案。同批改动的还有向导本身：外形与学历<strong>拆成两页</strong>（每页只装一块内容，四步变五步），并<strong>不再向用户呈现完成度与缺项清单</strong>（见 4.2 的「不对称」一段）。体重由数字输入框改为与身高同形的带单位下拉（<code class="mono">52 kg</code>，选项本身即 35–150 这道范围）。<br>
+        v1.7 变更（门槛收口）：<strong>补充 11 项由选填转必填，入池门槛从 9 项变成 20 项</strong>（4.2 / 12.3 / 19.2）。加门槛的证据是实的：线上 125 个 active 账号里 <code>expectation</code> 125 个全空、<code>company</code> 124 个空 —— 补充这一步走到一半就停的人，池子里全是半张档案。<strong>作息（<code class="mono">chronotype</code>）整个删除</strong>（迁移 <code class="mono">000004</code>，5.2 的 DDL 与 12.2 的因子表同步改）：它只喂 <code class="mono">lifestyleAffinity</code> 的一项，而那条规则「任一方未填不计入分母」让它成为一条反向激励 —— 三项全不填反而拿满分，如实填一项不如不填；删掉它，吸烟与饮酒转为必填，洞在剩下的两项上补上。<strong>「完成度 ≥ 60」这道引荐门槛作废</strong>：旧公式下「必填齐全、选填全空」正好 60 分，而入池本就要求必填全齐，四处在 SQL 里的 <code class="mono">completeness &gt;= 60</code> 是死条件，一个候选也没拦下过（决策 16 描述的「不对称」因此从未成立，24 章那张风险表里的「如果它形同虚设」在本次得到确认）；完成度改为「已填/20×100」，<strong>不拦人、不排序、界面不显示</strong>，只作为一份惰性数值留在服务端。候选集排序由 <code>ORDER BY random()</code> 改为 <code>ORDER BY u.last_active_at DESC NULLS LAST, p.user_id</code>（12.3）：随机顺带抹掉了「谁最近来过」，而那正是要优先照顾的信号。老账号不回溯（门槛只在 <code class="mono">status = onboarding</code> 时判）—— 这不是偏好而是必须，新的 20 项门槛线上 125 个 active 账号里 0 个能过，回溯生效等于候选池当场归零。<br>
+        v1.6 变更（19.2 建单向导与入池门槛）：<strong>入池必填由 6 项扩到 8 项</strong> —— <code>weight_kg</code>（35–150）与 <code>school_name</code>（≤40 字）由选填转为必填（4.1 / 4.2 / 5.2）。理由是把它们各自和已有的门槛配成对：身高配体重、学历配院校，只问一半会让「硬条件」在池子里留下半张档案。连带两处：完成度公式的分母从 7 / 12 改为 <code>totalRequired = 9</code> / 选填 10 项（60/40 的比例不变，但所有人的完成度会重算）；<code>school_name</code> 保持自由文本、不校院校库 —— 库外的学校也得填得进去，否则「必填」会变成「填不出来」（层级仍由 <code>schools.TierOf</code> 归一）。门槛仍然只在 <code>status = onboarding</code> 时判，已入池的人不会被踢回来，新门槛只拦新档案。同批改动的还有向导本身：外形与学历<strong>拆成两页</strong>（每页只装一块内容，四步变五步），并<strong>不再向用户呈现完成度与缺项清单</strong>（见 4.2；该段的小标题在 v1.7 由「不对称」改为「门槛」）。体重由数字输入框改为与身高同形的带单位下拉（<code class="mono">52 kg</code>，选项本身即 35–150 这道范围）。<br>
         文档内所有数值均为判断起点，非承诺；标注 <span class="pill todo">待确认</span> 者未获用户表态。
       </p>
 
